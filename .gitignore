@@ -1,1 +1,3 @@
 preferences.txt
+backend/.env
+backend/.venv
