@@ -1,3 +1,4 @@
+from app.models.base_configuration import BaseConfiguration
 from app.models.friend_group import FriendGroup
 from app.models.group_membership import GroupMembership
 from app.models.invitation_code import InvitationCode
@@ -8,4 +9,5 @@ __all__ = [
     "FriendGroup",
     "GroupMembership",
     "InvitationCode",
+    "BaseConfiguration",
 ]
