@@ -1,5 +1,6 @@
 from app.models.base_configuration import BaseConfiguration
 from app.models.friend_group import FriendGroup
+from app.models.feature_preference import FeaturePreference
 from app.models.group_membership import GroupMembership
 from app.models.invitation_code import InvitationCode
 from app.models.user_interest import UserInterest
@@ -14,4 +15,5 @@ __all__ = [
     "BaseConfiguration",
     "UserInterest",
     "UserPreference",
+    "FeaturePreference"
 ]
