@@ -9,6 +9,7 @@ from app.models.mood_entry import MoodEntry
 from app.models.notification_preference import NotificationPreference
 from app.models.recommendation import Recommendation
 from app.models.recommendation_interaction import RecommendationInteraction
+from app.models.room_message import RoomMessage
 from app.models.user_interest import UserInterest
 from app.models.user_preference import UserPreference
 from app.models.user import User
@@ -27,5 +28,6 @@ __all__ = [
     "Recommendation",
     "RecommendationInteraction",
     "DailyDrop",
-    "MoodEntry"
+    "MoodEntry",
+    "RoomMessage"
 ]
