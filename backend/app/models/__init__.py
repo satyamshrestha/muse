@@ -1,5 +1,6 @@
 from app.models.base_configuration import BaseConfiguration
 from app.models.behavioral_signal import BehavioralSignal
+from app.models.daily_drop import DailyDrop
 from app.models.friend_group import FriendGroup
 from app.models.feature_preference import FeaturePreference
 from app.models.group_membership import GroupMembership
@@ -23,5 +24,6 @@ __all__ = [
     "NotificationPreference",
     "BehavioralSignal",
     "Recommendation",
-    "RecommendationInteraction"
+    "RecommendationInteraction",
+    "DailyDrop"
 ]
