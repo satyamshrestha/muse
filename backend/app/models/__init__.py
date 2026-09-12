@@ -5,6 +5,7 @@ from app.models.friend_group import FriendGroup
 from app.models.feature_preference import FeaturePreference
 from app.models.group_membership import GroupMembership
 from app.models.invitation_code import InvitationCode
+from app.models.mood_entry import MoodEntry
 from app.models.notification_preference import NotificationPreference
 from app.models.recommendation import Recommendation
 from app.models.recommendation_interaction import RecommendationInteraction
@@ -25,5 +26,6 @@ __all__ = [
     "BehavioralSignal",
     "Recommendation",
     "RecommendationInteraction",
-    "DailyDrop"
+    "DailyDrop",
+    "MoodEntry"
 ]
