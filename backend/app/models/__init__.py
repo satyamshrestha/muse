@@ -17,6 +17,7 @@ from app.models.personal_note import PersonalNote
 from app.models.recommendation import Recommendation
 from app.models.recommendation_interaction import RecommendationInteraction
 from app.models.room_message import RoomMessage
+from app.models.shared_note import SharedNote
 from app.models.user_interest import UserInterest
 from app.models.user_preference import UserPreference
 from app.models.user import User
@@ -43,5 +44,6 @@ __all__ = [
     "Memory",
     "Media",
     "MemoryMedia",
-    "PersonalNote"
+    "PersonalNote",
+    "SharedNote"
 ]
