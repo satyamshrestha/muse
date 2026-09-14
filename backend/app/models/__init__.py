@@ -10,6 +10,7 @@ from app.models.invitation_code import InvitationCode
 from app.models.message_reaction import MessageReaction
 from app.models.memory import Memory
 from app.models.media import Media
+from app.models.memory_media import MemoryMedia
 from app.models.mood_entry import MoodEntry
 from app.models.notification_preference import NotificationPreference
 from app.models.recommendation import Recommendation
@@ -39,5 +40,6 @@ __all__ = [
     "RoomMessage",
     "GroupActivityResponse",
     "Memory",
-    "Media"
+    "Media",
+    "MemoryMedia"
 ]
