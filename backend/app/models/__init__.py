@@ -8,6 +8,7 @@ from app.models.group_activity import GroupActivity
 from app.models.group_activity_response import GroupActivityResponse
 from app.models.invitation_code import InvitationCode
 from app.models.message_reaction import MessageReaction
+from app.models.memory import Memory
 from app.models.mood_entry import MoodEntry
 from app.models.notification_preference import NotificationPreference
 from app.models.recommendation import Recommendation
@@ -35,5 +36,6 @@ __all__ = [
     "MoodEntry",
     "MessageReaction",
     "RoomMessage",
-    "GroupActivityResponse"
+    "GroupActivityResponse",
+    "Memory"
 ]
