@@ -13,6 +13,7 @@ from app.models.media import Media
 from app.models.memory_media import MemoryMedia
 from app.models.mood_entry import MoodEntry
 from app.models.notification_preference import NotificationPreference
+from app.models.personal_note import PersonalNote
 from app.models.recommendation import Recommendation
 from app.models.recommendation_interaction import RecommendationInteraction
 from app.models.room_message import RoomMessage
@@ -41,5 +42,6 @@ __all__ = [
     "GroupActivityResponse",
     "Memory",
     "Media",
-    "MemoryMedia"
+    "MemoryMedia",
+    "PersonalNote"
 ]
