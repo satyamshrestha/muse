@@ -13,6 +13,7 @@ from app.models.media import Media
 from app.models.memory_media import MemoryMedia
 from app.models.mood_entry import MoodEntry
 from app.models.notification_preference import NotificationPreference
+from app.models.notification import Notification
 from app.models.personal_note import PersonalNote
 from app.models.plan import Plan
 from app.models.plan_participant import PlanParticipant
@@ -51,5 +52,6 @@ __all__ = [
     "SharedNote",
     "Reminder",
     "Plan",
-    "PlanParticipant"
+    "PlanParticipant",
+    "Notification"
 ]
