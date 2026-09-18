@@ -1,3 +1,10 @@
+"""
+SQLAlchemy models for the MUSE application.
+
+This package contains the persistent domain entities used by
+the application's database layer.
+"""
+
 from app.models.base_configuration import BaseConfiguration
 from app.models.behavioral_signal import BehavioralSignal
 from app.models.daily_drop import DailyDrop
