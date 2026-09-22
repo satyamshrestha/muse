@@ -2,3 +2,4 @@ preferences.txt
 backend/.env
 backend/.venv
 __pycache__
+text.txt
