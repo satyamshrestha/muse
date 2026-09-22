@@ -14,7 +14,7 @@ def get_user_service(db: Session = Depends(get_db)) -> UserService:
     return UserService(repository)
 
 
-@router.post("", response_model=UserResponse)
+@router.post("", response_model=UserResponse, status_code=201)
 def create_user(
     user: UserCreate,
     service: UserService = Depends(get_user_service),
