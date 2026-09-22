@@ -8,7 +8,6 @@ from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
     repository = UserRepository(db)
     return UserService(repository)
