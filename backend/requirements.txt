@@ -1,8 +1,22 @@
+# FastAPI
 fastapi
-uvicorn[standard]
-pydantic-settings
+uvicorn
+
+# Database
 sqlalchemy
-psycopg[binary]
+psycopg2-binary
 alembic
-pytest
-httpx
+
+# Authentication
+python-jose
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+authlib
+itsdangerous==2.2.0
+
+# Configuration
+python-dotenv
+pydantic-settings
+
+# Validation
+pydantic[email]

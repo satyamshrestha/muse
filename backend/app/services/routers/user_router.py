@@ -20,6 +20,6 @@ def create_user(
 ):
     return service.create_user(
         email=user.email,
-        password_hash=user.password,
+        password=user.password,
         display_name=user.display_name,
     )
