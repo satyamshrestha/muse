@@ -1,6 +1,7 @@
 from app.auth.hashing import hash_password
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
+from app.exceptions.user_exceptions import (UserAlreadyExistsException)
 
 
 class UserService:
@@ -19,10 +20,14 @@ class UserService:
         existing_user = self.repository.get_by_email(email)
 
         if existing_user:
-            raise ValueError("User with this email already exists")
+            raise UserAlreadyExistsException()
 
-        return self.repository.create(
+        user = self.repository.create(
             email=email,
             password_hash=hash_password(password),
             display_name=display_name,
         )
+
+        self.repository.db.commit()
+
+        return user
