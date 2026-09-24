@@ -1,6 +1,6 @@
 def test_create_user(client):
     response = client.post(
-        "/api/v1/users",
+        "/api/v1/auth/signup",
         json={
             "email": "test@example.com",
             "password": "password123",
@@ -25,10 +25,10 @@ def test_create_duplicate_user_returns_409(client):
         "display_name": "Test User",
     }
 
-    first_response = client.post("/api/v1/users", json=payload)
+    first_response = client.post("/api/v1/auth/signup", json=payload)
     assert first_response.status_code == 201
 
-    second_response = client.post("/api/v1/users", json=payload)
+    second_response = client.post("/api/v1/auth/signup", json=payload)
 
     assert second_response.status_code == 409
     assert second_response.json() == {
