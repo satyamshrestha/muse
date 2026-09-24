@@ -39,7 +39,7 @@ class UserService:
         self,
         email: str,
         password: str
-    ):
+    ) -> User:
         user = self.repository.get_by_email(email)
         if not user or not verify_password(password, user.password_hash):
             raise InvalidCredentialsException()        
