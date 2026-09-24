@@ -1,5 +1,6 @@
 preferences.txt
-backend/.env
+.env
+.env.test
 backend/.venv
 __pycache__
 text.txt
