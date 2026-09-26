@@ -70,12 +70,10 @@ def test_login_success(client):
 
     data = login_response.json()
 
-    assert data["email"] == "login@example.com"
-    assert data["display_name"] == "Login User"
-    assert "id" in data
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
     assert "password" not in data
     assert "password_hash" not in data
-
 
 def test_login_wrong_password(client):
     signup_payload = {

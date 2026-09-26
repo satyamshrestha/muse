@@ -3,9 +3,14 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.repositories.user_repository import UserRepository
-from app.schemas.user_schema import UserCreate, UserResponse, UserLogin
 from app.services.user_service import UserService
-
+from app.schemas.user_schema import (
+    UserCreate,
+    UserResponse,
+    UserLogin,
+    TokenResponse,
+)
+from app.auth.jwt import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -27,12 +32,19 @@ def create_user(
     )
 
 
-@router.post("/login", response_model=UserResponse)
+@router.post("/login", response_model=TokenResponse)
 def login(
     credentials: UserLogin,
     service: UserService = Depends(get_user_service),
 ):
-    return service.login(
+    user = service.login(
         email=credentials.email,
         password=credentials.password,
     )
+
+    access_token = create_access_token(str(user.id))
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
