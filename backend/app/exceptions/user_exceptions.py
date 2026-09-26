@@ -7,6 +7,13 @@ class UserAlreadyExistsException(AppException):
             detail="User already exists!"
         )
 
+class UserNotFoundException(AppException):
+    def __init__(self):
+        super().__init__(
+            status_code=409,
+            detail="User not found!"
+        )
+
 class InvalidCredentialsException(AppException):
     def __init__(self):
         super().__init__(

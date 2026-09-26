@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from app.auth.hashing import hash_password, verify_password
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
@@ -45,3 +47,6 @@ class UserService:
             raise InvalidCredentialsException()        
 
         return user
+
+    def get_by_id(self, user_id: UUID) -> User | None:
+        return self.repository.get_by_id(user_id)
