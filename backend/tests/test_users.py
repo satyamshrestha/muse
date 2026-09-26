@@ -99,7 +99,7 @@ def test_login_wrong_password(client):
         },
     )
 
-    assert login_response.status_code == 400
+    assert login_response.status_code == 401
     assert "detail" in login_response.json()
 
 
@@ -112,5 +112,5 @@ def test_login_nonexistent_user(client):
         },
     )
 
-    assert login_response.status_code == 400
+    assert login_response.status_code == 401
     assert "detail" in login_response.json()
