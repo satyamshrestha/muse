@@ -28,6 +28,22 @@ def create_access_token(subject: str) -> str:
         algorithm=settings.jwt_algorithm,
     )
 
+def create_refresh_token(subject: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(
+        days=7
+    )
+
+    payload = {
+        "sub": subject,
+        "type": "refresh",
+        "exp": expire,
+    }
+
+    return jwt.encode(
+        payload,
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
 
 def get_current_user_id(
     token: str = Depends(oauth2_scheme),

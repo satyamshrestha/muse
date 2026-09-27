@@ -5,6 +5,11 @@ from app.services.user_service import UserService
 from app.auth.jwt import create_access_token, get_current_user_id
 from app.exceptions.user_exceptions import UserNotFoundException
 from app.services.dependencies import get_user_service
+from app.auth.jwt import (
+    create_access_token,
+    create_refresh_token,
+    get_current_user_id,
+)
 from app.schemas.user_schema import (
     UserCreate,
     UserResponse,
@@ -37,9 +42,11 @@ def login(
     )
 
     access_token = create_access_token(str(user.id))
+    refresh_token = create_refresh_token(str(user.id))
 
     return {
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
     }
 
