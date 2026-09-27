@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-
+from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -31,7 +31,7 @@ def create_access_token(subject: str) -> str:
 
 def get_current_user_id(
     token: str = Depends(oauth2_scheme),
-) -> str:
+) -> UUID:
     try:
         payload = jwt.decode(
             token,
@@ -47,9 +47,9 @@ def get_current_user_id(
                 detail="Invalid authentication credentials",
             )
 
-        return user_id
+        return UUID(user_id)
 
-    except JWTError:
+    except (JWTError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",

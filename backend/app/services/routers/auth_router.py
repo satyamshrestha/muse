@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from uuid import UUID
 
 from app.services.user_service import UserService
 from app.auth.jwt import create_access_token, get_current_user_id
@@ -14,7 +15,7 @@ from app.schemas.user_schema import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/signup", response_model=UserResponse, status_code=201)
-def create_user(
+def signup(
     user: UserCreate,
     service: UserService = Depends(get_user_service),
 ):
@@ -44,7 +45,7 @@ def login(
 
 @router.get("/me", response_model=UserResponse)
 def get_me(
-    user_id: str = Depends(get_current_user_id),
+    user_id: UUID = Depends(get_current_user_id),
     service: UserService = Depends(get_user_service),
 ):
     user = service.get_by_id(user_id)
