@@ -90,3 +90,52 @@ def test_get_me_with_invalid_token_returns_401(client):
     )
 
     assert response.status_code == 401
+
+def test_refresh_token(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "refresh@example.com",
+            "password": "password123",
+            "display_name": "Refresh User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "refresh@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    tokens = login_response.json()
+
+    refresh_response = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": tokens["refresh_token"],
+        },
+    )
+
+    assert refresh_response.status_code == 200
+
+    data = refresh_response.json()
+
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+    assert data["refresh_token"] == tokens["refresh_token"]
+
+def test_refresh_token_invalid(client):
+    response = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": "invalid-token",
+        },
+    )
+
+    assert response.status_code == 401

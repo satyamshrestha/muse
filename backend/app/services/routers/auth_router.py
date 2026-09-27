@@ -9,12 +9,14 @@ from app.auth.jwt import (
     create_access_token,
     create_refresh_token,
     get_current_user_id,
+    verify_refresh_token,
 )
 from app.schemas.user_schema import (
     UserCreate,
     UserResponse,
     UserLogin,
     TokenResponse,
+    RefreshTokenRequest
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -61,3 +63,23 @@ def get_me(
         raise UserNotFoundException()
 
     return user
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_token(
+    request: RefreshTokenRequest,
+    service: UserService = Depends(get_user_service),
+):
+    user_id = verify_refresh_token(request.refresh_token)
+
+    user = service.get_by_id(user_id)
+
+    if not user:
+        raise UserNotFoundException()
+
+    access_token = create_access_token(str(user.id))
+
+    return {
+        "access_token": access_token,
+        "refresh_token": request.refresh_token,
+        "token_type": "bearer",
+    }
