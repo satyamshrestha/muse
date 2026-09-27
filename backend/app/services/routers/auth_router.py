@@ -1,11 +1,9 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.repositories.user_repository import UserRepository
 from app.services.user_service import UserService
 from app.auth.jwt import create_access_token, get_current_user_id
 from app.exceptions.user_exceptions import UserNotFoundException
+from app.services.dependencies import get_user_service
 from app.schemas.user_schema import (
     UserCreate,
     UserResponse,
@@ -14,12 +12,6 @@ from app.schemas.user_schema import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-def get_user_service(db: Session = Depends(get_db)) -> UserService:
-    repository = UserRepository(db)
-    return UserService(repository)
-
 
 @router.post("/signup", response_model=UserResponse, status_code=201)
 def create_user(
