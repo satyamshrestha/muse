@@ -139,3 +139,36 @@ def test_refresh_token_invalid(client):
     )
 
     assert response.status_code == 401
+
+def test_refresh_with_access_token_returns_401(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "wrong-token@example.com",
+            "password": "password123",
+            "display_name": "Wrong Token User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "wrong-token@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": access_token,
+        },
+    )
+
+    assert response.status_code == 401
