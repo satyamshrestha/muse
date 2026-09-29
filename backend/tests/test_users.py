@@ -223,3 +223,44 @@ def test_logout_revokes_refresh_token(client):
     )
 
     assert revoked_refresh_response.status_code == 401
+
+def test_logout_with_invalid_refresh_token_returns_401(client):
+    response = client.post(
+        "/api/v1/auth/logout",
+        json={
+            "refresh_token": "invalid-token",
+        },
+    )
+
+    assert response.status_code == 401
+
+def test_logout_with_access_token_returns_401(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "logout-access@example.com",
+            "password": "password123",
+            "display_name": "Logout Access User",
+        },
+    )
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "logout-access@example.com",
+            "password": "password123",
+        },
+    )
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.post(
+        "/api/v1/auth/logout",
+        json={
+            "refresh_token": access_token,
+        },
+    )
+
+    assert response.status_code == 401
