@@ -4,12 +4,14 @@ from uuid import UUID
 from app.services.user_service import UserService
 from app.auth.jwt import create_access_token, get_current_user_id
 from app.exceptions.user_exceptions import UserNotFoundException
+from app.auth.token_store import revoke_refresh_token
 from app.services.dependencies import get_user_service
 from app.auth.jwt import (
     create_access_token,
     create_refresh_token,
     get_current_user_id,
     verify_refresh_token,
+    get_refresh_token_expiry,
 )
 from app.schemas.user_schema import (
     UserCreate,
@@ -83,3 +85,16 @@ def refresh_token(
         "refresh_token": request.refresh_token,
         "token_type": "bearer",
     }
+
+@router.post("/logout", status_code=204)
+def logout(
+    request: RefreshTokenRequest,
+):
+    expires_in = get_refresh_token_expiry(
+        request.refresh_token
+    )
+
+    revoke_refresh_token(
+        request.refresh_token,
+        expires_in,
+    )
