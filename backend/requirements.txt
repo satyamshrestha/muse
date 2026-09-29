@@ -6,6 +6,7 @@ uvicorn
 sqlalchemy
 psycopg2-binary
 alembic
+redis
 
 # Authentication
 python-jose
