@@ -18,7 +18,8 @@ from app.schemas.user_schema import (
     UserResponse,
     UserLogin,
     TokenResponse,
-    RefreshTokenRequest
+    RefreshTokenRequest,
+    UserUpdate
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -85,6 +86,17 @@ def refresh_token(
         "refresh_token": request.refresh_token,
         "token_type": "bearer",
     }
+
+@router.patch("/me", response_model=UserResponse)
+def update_me(
+    user_update: UserUpdate,
+    user_id: str = Depends(get_current_user_id),
+    service: UserService = Depends(get_user_service),
+):
+    return service.update_display_name(
+        user_id=user_id,
+        display_name=user_update.display_name
+    )
 
 @router.post("/logout", status_code=204)
 def logout(

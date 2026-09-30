@@ -5,7 +5,8 @@ from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.exceptions.user_exceptions import (
     UserAlreadyExistsException,
-    InvalidCredentialsException
+    InvalidCredentialsException,
+    UserNotFoundException,
 )
 
 
@@ -50,3 +51,16 @@ class UserService:
 
     def get_by_id(self, user_id: UUID) -> User | None:
         return self.repository.get_by_id(user_id)
+
+    def update_display_name(
+        self,
+        user_id: UUIDm
+        display_name: str
+    ):
+        user = self.repository.update_display_name(
+            user_id=user_id,
+            display_name=display_name
+        )
+        if not user:
+            raise UserNotFoundException()
+        return user

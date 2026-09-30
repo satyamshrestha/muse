@@ -39,3 +39,17 @@ class UserRepository:
         return self.db.scalar(
             select(User).where(User.id == user_id)
         )
+
+    def update_display_name(
+        self,
+        user_id: UUID,
+        display_name: str
+    ):
+        user = self,get_by_id(user_id)
+        if not user:
+            return None
+        user.display_name = display_name
+        self.db.commit()
+        self.db.refresh(user)
+        
+        return user
