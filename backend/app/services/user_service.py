@@ -54,7 +54,7 @@ class UserService:
 
     def update_display_name(
         self,
-        user_id: UUIDm
+        user_id: UUID,
         display_name: str
     ):
         user = self.repository.update_display_name(

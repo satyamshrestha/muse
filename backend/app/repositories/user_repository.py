@@ -45,7 +45,7 @@ class UserRepository:
         user_id: UUID,
         display_name: str
     ):
-        user = self,get_by_id(user_id)
+        user = self.get_by_id(user_id)
         if not user:
             return None
         user.display_name = display_name
