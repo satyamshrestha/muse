@@ -264,3 +264,102 @@ def test_logout_with_access_token_returns_401(client):
     )
 
     assert response.status_code == 401
+
+def test_update_me_success(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "update_me@example.com",
+            "password": "password123",
+            "display_name": "Old Name"
+        }
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "update_me@example.com",
+            "password": "password123"
+        }
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+    
+    response = client.patch(
+        "/api/v1/auth/me",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+        json={
+            "display_name": "New Name",
+        }
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["display_name"] == "New Name"
+    assert data["email"] == "update_me@example.com"
+    assert "password" not in data
+    assert "password_hash" not in data
+
+    me_response = client.get(
+        "/api/v1/auth/me",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        }
+    )
+
+    assert me_response.status_code == 200
+    assert me_response.json()["display_name"] == "New Name"
+
+def test_update_me_without_token_returns_401(client):
+    response = client.patch(
+        "/api/v1/auth/me",
+        json={
+            "display_name": "New Name",
+        }
+    )
+
+    assert response.status_code == 401
+
+def test_update_me_empty_display_name_returns_422(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "empty_name@example.com",
+            "password": "password123",
+            "display_name": "Old Name"
+        }
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "empty_name@example.com",
+            "password": "password123"
+        }
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+    
+    response = client.patch(
+        "/api/v1/auth/me",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+        json={
+            "display_name": "",
+        }
+    )
+
+    assert response.status_code == 422

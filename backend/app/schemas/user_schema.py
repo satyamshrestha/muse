@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -29,4 +29,4 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 class UserUpdate(BaseModel):
-    display_name: str
+    display_name: str = Field(min_length=1)
