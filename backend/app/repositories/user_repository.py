@@ -40,16 +40,24 @@ class UserRepository:
             select(User).where(User.id == user_id)
         )
 
-    def update_display_name(
+    def update_profile(
         self,
         user_id: UUID,
-        display_name: str
-    ):
+        display_name: str | None = None,
+        bio: str | None = None,
+    ) -> User | None:
         user = self.get_by_id(user_id)
+
         if not user:
             return None
-        user.display_name = display_name
+
+        if display_name is not None:
+            user.display_name = display_name
+
+        if bio is not None:
+            user.bio = bio
+
         self.db.commit()
         self.db.refresh(user)
-        
+
         return user

@@ -52,15 +52,19 @@ class UserService:
     def get_by_id(self, user_id: UUID) -> User | None:
         return self.repository.get_by_id(user_id)
 
-    def update_display_name(
+    def update_profile(
         self,
         user_id: UUID,
-        display_name: str
+        display_name: str | None = None,
+        bio: str | None = None,
     ):
-        user = self.repository.update_display_name(
+        user = self.repository.update_profile(
             user_id=user_id,
-            display_name=display_name
+            display_name=display_name,
+            bio=bio,
         )
+
         if not user:
             raise UserNotFoundException()
+
         return user

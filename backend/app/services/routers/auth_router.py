@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends
 from uuid import UUID
 
 from app.services.user_service import UserService
-from app.auth.jwt import create_access_token, get_current_user_id
 from app.exceptions.user_exceptions import UserNotFoundException
 from app.auth.token_store import revoke_refresh_token
 from app.services.dependencies import get_user_service
@@ -90,12 +89,13 @@ def refresh_token(
 @router.patch("/me", response_model=UserResponse)
 def update_me(
     user_update: UserUpdate,
-    user_id: str = Depends(get_current_user_id),
+    user_id: UUID = Depends(get_current_user_id),
     service: UserService = Depends(get_user_service),
 ):
-    return service.update_display_name(
+    return service.update_profile(
         user_id=user_id,
-        display_name=user_update.display_name
+        display_name=user_update.display_name,
+        bio=user_update.bio,
     )
 
 @router.post("/logout", status_code=204)
