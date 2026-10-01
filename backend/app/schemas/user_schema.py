@@ -12,6 +12,7 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
+    bio: str | None
     display_name: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -29,4 +30,12 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 class UserUpdate(BaseModel):
-    display_name: str = Field(min_length=1)
+    display_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
+    bio: str | None = Field(
+        default=None,
+        max_length=500,
+    )

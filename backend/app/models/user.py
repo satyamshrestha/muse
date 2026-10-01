@@ -1,4 +1,5 @@
 import uuid
+
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, String
@@ -32,6 +33,11 @@ class User(Base):
     display_name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
+    )
+
+    bio: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
