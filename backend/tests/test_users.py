@@ -363,3 +363,144 @@ def test_update_me_empty_display_name_returns_422(client):
     )
 
     assert response.status_code == 422
+
+def test_update_me_bio_only(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "bio-only@example.com",
+            "password": "password123",
+            "display_name": "Original Name",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "bio-only@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.patch(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"bio": "Building AI systems."},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["bio"] == "Building AI systems."
+    assert data["display_name"] == "Original Name"
+
+def test_update_me_display_name_and_bio(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "both-fields@example.com",
+            "password": "password123",
+            "display_name": "Old Name",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "both-fields@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.patch(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={
+            "display_name": "New Name",
+            "bio": "Building AI systems.",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["display_name"] == "New Name"
+    assert data["bio"] == "Building AI systems."
+
+def test_update_me_empty_bio_returns_200(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "empty-bio@example.com",
+            "password": "password123",
+            "display_name": "Test User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "empty-bio@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.patch(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"bio": ""},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["bio"] == ""
+
+def test_update_me_bio_too_long_returns_422(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "long-bio@example.com",
+            "password": "password123",
+            "display_name": "Test User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "long-bio@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.patch(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"bio": "a" * 501},
+    )
+
+    assert response.status_code == 422
