@@ -18,7 +18,8 @@ from app.schemas.user_schema import (
     UserLogin,
     TokenResponse,
     RefreshTokenRequest,
-    UserUpdate
+    UserUpdate,
+    PasswordChangeRequest,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -96,6 +97,18 @@ def update_me(
         user_id=user_id,
         display_name=user_update.display_name,
         bio=user_update.bio,
+    )
+
+@router.patch("/password", status_code=204)
+def change_password(
+    request: PasswordChangeRequest,
+    user_id: UUID = Depends(get_current_user_id),
+    service: UserService = Depends(get_user_service),
+):
+    service.change_password(
+        user_id=user_id,
+        current_password=request.current_password,
+        new_password=request.new_password,
     )
 
 @router.post("/logout", status_code=204)

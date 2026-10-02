@@ -68,3 +68,24 @@ class UserService:
             raise UserNotFoundException()
 
         return user
+
+    def change_password(
+        self,
+        user_id: UUID,
+        current_password: str,
+        new_password: str,
+    ) -> None:
+        user = self.repository.get_by_id(user_id)
+
+        if not user:
+            raise UserNotFoundException()
+
+        if not verify_password(current_password, user.password_hash):
+            raise InvalidCredentialsException()
+
+        new_password_hash = hash_password(new_password)
+
+        self.repository.update_password(
+            user_id=user_id,
+            password_hash=new_password_hash,
+        )

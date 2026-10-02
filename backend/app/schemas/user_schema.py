@@ -46,3 +46,7 @@ class UserUpdate(BaseModel):
             raise ValueError("At least one profile field must be provided")
 
         return self
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)

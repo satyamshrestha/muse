@@ -61,3 +61,20 @@ class UserRepository:
         self.db.refresh(user)
 
         return user
+
+    def update_password(
+        self,
+        user_id: UUID,
+        password_hash: str,
+    ) -> User | None:
+        user = self.get_by_id(user_id)
+
+        if not user:
+            return None
+
+        user.password_hash = password_hash
+
+        self.db.commit()
+        self.db.refresh(user)
+
+        return user
