@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class UserCreate(BaseModel):
@@ -39,3 +39,10 @@ class UserUpdate(BaseModel):
         default=None,
         max_length=500,
     )
+
+    @model_validator(mode="after")
+    def validate_update(self):
+        if self.display_name is None and self.bio is None:
+            raise ValueError("At least one profile field must be provided")
+
+        return self
