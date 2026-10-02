@@ -504,3 +504,148 @@ def test_update_me_bio_too_long_returns_422(client):
     )
 
     assert response.status_code == 422
+
+def test_change_password_success(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "change-password@example.com",
+            "password": "password123",
+            "display_name": "Password User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "change-password@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.patch(
+        "/api/v1/auth/password",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+        json={
+            "current_password": "password123",
+            "new_password": "newpassword123",
+        },
+    )
+
+    assert response.status_code == 204
+
+    old_login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "change-password@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert old_login_response.status_code == 401
+
+    new_login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "change-password@example.com",
+            "password": "newpassword123",
+        },
+    )
+
+    assert new_login_response.status_code == 200
+
+
+def test_change_password_wrong_current_password_returns_401(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "wrong-current@example.com",
+            "password": "password123",
+            "display_name": "Password User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "wrong-current@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.patch(
+        "/api/v1/auth/password",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+        json={
+            "current_password": "wrong-password",
+            "new_password": "newpassword123",
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_change_password_without_token_returns_401(client):
+    response = client.patch(
+        "/api/v1/auth/password",
+        json={
+            "current_password": "password123",
+            "new_password": "newpassword123",
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_change_password_short_new_password_returns_422(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "short-password@example.com",
+            "password": "password123",
+            "display_name": "Password User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "short-password@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.patch(
+        "/api/v1/auth/password",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+        json={
+            "current_password": "password123",
+            "new_password": "short",
+        },
+    )
+
+    assert response.status_code == 422
