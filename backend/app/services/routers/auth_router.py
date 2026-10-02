@@ -79,11 +79,21 @@ def refresh_token(
     if not user:
         raise UserNotFoundException()
 
-    access_token = create_access_token(str(user.id))
+    expires_in = get_refresh_token_expiry(
+        request.refresh_token
+    )
+
+    new_access_token = create_access_token(str(user.id))
+    new_refresh_token = create_refresh_token(str(user.id))
+
+    revoke_refresh_token(
+        request.refresh_token,
+        expires_in,
+    )
 
     return {
-        "access_token": access_token,
-        "refresh_token": request.refresh_token,
+        "access_token": new_access_token,
+        "refresh_token": new_refresh_token,
         "token_type": "bearer",
     }
 
