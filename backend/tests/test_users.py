@@ -128,7 +128,25 @@ def test_refresh_token(client):
 
     assert "access_token" in data
     assert data["token_type"] == "bearer"
-    assert data["refresh_token"] == tokens["refresh_token"]
+    assert data["refresh_token"] != tokens["refresh_token"]
+
+    old_refresh_response = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": tokens["refresh_token"],
+        },
+    )
+
+    assert old_refresh_response.status_code == 401
+
+    new_refresh_response = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": data["refresh_token"],
+        },
+    )
+
+    assert new_refresh_response.status_code == 200
 
 def test_refresh_token_invalid(client):
     response = client.post(
@@ -206,10 +224,12 @@ def test_logout_revokes_refresh_token(client):
 
     assert refresh_response.status_code == 200
 
+    rotated_refresh_token = refresh_response.json()["refresh_token"]
+
     logout_response = client.post(
         "/api/v1/auth/logout",
         json={
-            "refresh_token": refresh_token,
+            "refresh_token": rotated_refresh_token,
         },
     )
 
@@ -218,7 +238,7 @@ def test_logout_revokes_refresh_token(client):
     revoked_refresh_response = client.post(
         "/api/v1/auth/refresh",
         json={
-            "refresh_token": refresh_token,
+            "refresh_token": rotated_refresh_token,
         },
     )
 

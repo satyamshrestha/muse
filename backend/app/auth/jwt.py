@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -37,6 +37,7 @@ def create_refresh_token(subject: str) -> str:
     payload = {
         "sub": subject,
         "type": "refresh",
+        "jti": str(uuid4()),
         "exp": expire,
     }
 
