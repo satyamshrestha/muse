@@ -20,6 +20,7 @@ def create_access_token(subject: str) -> str:
 
     payload = {
         "sub": subject,
+        "type": "access",
         "exp": expire,
     }
 
@@ -92,6 +93,12 @@ def get_current_user_id(
             settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm],
         )
+
+        if payload.get("type") != "access":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+            )
 
         user_id = payload.get("sub")
 

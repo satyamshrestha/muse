@@ -1,3 +1,5 @@
+import uuid
+
 from app.auth.token_store import (
     revoke_refresh_token,
     is_refresh_token_revoked,
@@ -5,7 +7,7 @@ from app.auth.token_store import (
 
 
 def test_refresh_token_revocation():
-    token = "test-refresh-token"
+    token = f"test-refresh-token-{uuid.uuid4()}"
 
     assert not is_refresh_token_revoked(token)
 
