@@ -777,3 +777,67 @@ def test_logout_with_already_revoked_refresh_token_returns_401(client):
     )
 
     assert second_logout.status_code == 401
+
+def test_rotated_refresh_token_cannot_be_reused_after_logout(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "rotation-logout@example.com",
+            "password": "password123",
+            "display_name": "Rotation Logout User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "rotation-logout@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    original_refresh_token = login_response.json()["refresh_token"]
+
+    refresh_response = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": original_refresh_token,
+        },
+    )
+
+    assert refresh_response.status_code == 200
+
+    rotated_refresh_token = refresh_response.json()["refresh_token"]
+
+    assert rotated_refresh_token != original_refresh_token
+
+    original_reuse_response = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": original_refresh_token,
+        },
+    )
+
+    assert original_reuse_response.status_code == 401
+
+    logout_response = client.post(
+        "/api/v1/auth/logout",
+        json={
+            "refresh_token": rotated_refresh_token,
+        },
+    )
+
+    assert logout_response.status_code == 204
+
+    rotated_reuse_response = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": rotated_refresh_token,
+        },
+    )
+
+    assert rotated_reuse_response.status_code == 401
