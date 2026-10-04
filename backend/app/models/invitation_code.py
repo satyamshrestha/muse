@@ -24,6 +24,11 @@ class InvitationCode(Base):
         index=True,
     )
 
+    configuration_key: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
     used: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
