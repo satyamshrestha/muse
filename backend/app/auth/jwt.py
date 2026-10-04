@@ -94,7 +94,7 @@ def get_current_user_id(
             algorithms=[settings.jwt_algorithm],
         )
 
-        if payload.get("type") != "access":
+        if payload.get("type") == "refresh":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
