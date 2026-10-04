@@ -735,3 +735,45 @@ def test_get_me_with_refresh_token_returns_401(client):
     )
 
     assert response.status_code == 401
+
+def test_logout_with_already_revoked_refresh_token_returns_401(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "double-logout@example.com",
+            "password": "password123",
+            "display_name": "Double Logout User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "double-logout@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    refresh_token = login_response.json()["refresh_token"]
+
+    first_logout = client.post(
+        "/api/v1/auth/logout",
+        json={
+            "refresh_token": refresh_token,
+        },
+    )
+
+    assert first_logout.status_code == 204
+
+    second_logout = client.post(
+        "/api/v1/auth/logout",
+        json={
+            "refresh_token": refresh_token,
+        },
+    )
+
+    assert second_logout.status_code == 401

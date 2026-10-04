@@ -125,6 +125,8 @@ def change_password(
 def logout(
     request: RefreshTokenRequest,
 ):
+    verify_refresh_token(request.refresh_token)
+
     expires_in = get_refresh_token_expiry(
         request.refresh_token
     )
