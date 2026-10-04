@@ -78,3 +78,20 @@ class UserRepository:
         self.db.refresh(user)
 
         return user
+
+    def attach_base_configuration(
+        self,
+        user_id: UUID,
+        configuration_id: UUID,
+    ) -> User | None:
+        user = self.get_by_id(user_id)
+
+        if not user:
+            return None
+
+        user.base_configuration_id = configuration_id
+
+        self.db.commit()
+        self.db.refresh(user)
+
+        return user

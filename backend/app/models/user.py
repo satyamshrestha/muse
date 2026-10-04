@@ -2,7 +2,7 @@ import uuid
 
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,6 +37,12 @@ class User(Base):
 
     bio: Mapped[str | None] = mapped_column(
         String(500),
+        nullable=True,
+    )
+
+    base_configuration_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("base_configurations.id"),
         nullable=True,
     )
 

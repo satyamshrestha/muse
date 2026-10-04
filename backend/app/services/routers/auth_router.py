@@ -1,26 +1,31 @@
-from fastapi import APIRouter, Depends
 from uuid import UUID
 
-from app.services.user_service import UserService
-from app.exceptions.user_exceptions import UserNotFoundException
-from app.auth.token_store import revoke_refresh_token
-from app.services.dependencies import get_user_service
+from fastapi import APIRouter, Depends
+
 from app.auth.jwt import (
     create_access_token,
     create_refresh_token,
     get_current_user_id,
-    verify_refresh_token,
     get_refresh_token_expiry,
+    verify_refresh_token,
 )
+from app.auth.token_store import revoke_refresh_token
+from app.exceptions.user_exceptions import UserNotFoundException
 from app.schemas.user_schema import (
-    UserCreate,
-    UserResponse,
-    UserLogin,
-    TokenResponse,
-    RefreshTokenRequest,
-    UserUpdate,
     PasswordChangeRequest,
+    RefreshTokenRequest,
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+    UserUpdate,
 )
+from app.services.dependencies import (
+    get_personalization_service,
+    get_user_service,
+)
+from app.services.personalization_service import PersonalizationService
+from app.services.user_service import UserService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -135,3 +140,23 @@ def logout(
         request.refresh_token,
         expires_in,
     )
+
+@router.post("/claim-invitation")
+def claim_invitation(
+    code: str,
+    user_id: UUID = Depends(get_current_user_id),
+    service: PersonalizationService = Depends(
+        get_personalization_service
+    )
+):
+    configuration = service.claim_configuration(
+        user_id=user_id,
+        code=code,
+    )
+
+    return {
+        "configuration_id": configuration.id,
+        "configuration_name": configuration.name,
+        "interests": configuration.interests,
+        "preferences": configuration.preferences,
+    }
