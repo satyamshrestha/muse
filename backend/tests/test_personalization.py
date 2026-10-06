@@ -104,3 +104,60 @@ def test_save_personalization(db):
     assert notification.group_activity_enabled is False
     assert notification.quiet_hours_start == 23
     assert notification.quiet_hours_end == 8
+
+def test_update_personalization_endpoint(client):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "personalization@example.com",
+            "password": "Password123!",
+            "display_name": "Personalization User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "personalization@example.com",
+            "password": "Password123!",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    response = client.put(
+        "/api/v1/personalization",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+        json={
+            "interests": [
+                "coding",
+                "music",
+            ],
+            "preferences": {
+                "theme": "dark",
+                "recommendation_style": "balanced",
+            },
+            "feature_preferences": {
+                "daily_drop": "high",
+                "games": "medium",
+            },
+            "notifications": {
+                "enabled": True,
+                "daily_drop_enabled": True,
+                "group_activity_enabled": False,
+                "quiet_hours_start": 23,
+                "quiet_hours_end": 8,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Personalization updated successfully",
+    }
