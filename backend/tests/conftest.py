@@ -1,4 +1,5 @@
 import pytest
+
 from fastapi.testclient import TestClient
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
@@ -50,6 +51,16 @@ def setup_test_database():
     yield
 
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def db():
+    session = TestingSessionLocal()
+
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 @pytest.fixture
