@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,5 +17,15 @@ class BaseConfigurationRepository:
         return self.db.scalar(
             select(BaseConfiguration).where(
                 BaseConfiguration.name == name
+            )
+        )
+
+    def get_by_id(
+        self,
+        configuration_id: UUID,
+    ) -> BaseConfiguration | None:
+        return self.db.scalar(
+            select(BaseConfiguration).where(
+                BaseConfiguration.id == configuration_id
             )
         )

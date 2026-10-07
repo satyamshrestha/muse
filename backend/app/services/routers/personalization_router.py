@@ -3,7 +3,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from app.auth.jwt import get_current_user_id
-from app.schemas.personalization_schema import PersonalizationUpdate
+from app.schemas.personalization_schema import (
+    PersonalizationResponse,
+    PersonalizationUpdate,
+)
 from app.services.dependencies import get_personalization_service
 from app.services.personalization_service import PersonalizationService
 
@@ -37,3 +40,16 @@ def update_personalization(
     return {
         "message": "Personalization updated successfully",
     }
+
+
+@router.get(
+    "",
+    response_model=PersonalizationResponse,
+)
+def get_personalization(
+    user_id: UUID = Depends(get_current_user_id),
+    service: PersonalizationService = Depends(
+        get_personalization_service
+    ),
+):
+    return service.get_personalization(user_id)

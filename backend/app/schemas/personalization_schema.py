@@ -22,3 +22,12 @@ class PersonalizationUpdate(BaseModel):
     preferences: dict[str, str] = Field(default_factory=dict)
     feature_preferences: dict[str, str] = Field(default_factory=dict)
     notifications: NotificationPreferenceInput
+
+
+class PersonalizationResponse(BaseModel):
+    configuration_id: str | None
+    configuration_name: str | None
+    interests: list[str]
+    preferences: dict[str, str]
+    feature_preferences: dict[str, str]
+    notifications: NotificationPreferenceInput | None

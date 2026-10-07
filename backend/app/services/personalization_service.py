@@ -112,3 +112,85 @@ class PersonalizationService:
         )
 
         self.user_repository.db.commit()
+
+    def get_personalization(
+        self,
+        user_id: UUID,
+    ) -> dict:
+        user = self.user_repository.get_by_id(user_id)
+
+        if not user:
+            raise UserNotFoundException()
+
+        interests = self.user_interest_repository.get_by_user_id(
+            user_id
+        )
+
+        preferences = self.user_preference_repository.get_by_user_id(
+            user_id
+        )
+
+        feature_preferences = (
+            self.feature_preference_repository.get_by_user_id(
+                user_id
+            )
+        )
+
+        notification = (
+            self.notification_preference_repository.get_by_user_id(
+                user_id
+            )
+        )
+
+        configuration = None
+
+        if user.base_configuration_id:
+            configuration = (
+                self.configuration_repository.get_by_id(
+                    user.base_configuration_id
+                )
+            )
+
+        return {
+            "configuration_id": (
+                str(configuration.id)
+                if configuration
+                else None
+            ),
+            "configuration_name": (
+                configuration.name
+                if configuration
+                else None
+            ),
+            "interests": [
+                item.interest
+                for item in interests
+            ],
+            "preferences": {
+                item.key: item.value
+                for item in preferences
+            },
+            "feature_preferences": {
+                item.feature: item.preference
+                for item in feature_preferences
+            },
+            "notifications": (
+                {
+                    "enabled": notification.enabled,
+                    "daily_drop_enabled": (
+                        notification.daily_drop_enabled
+                    ),
+                    "group_activity_enabled": (
+                        notification.group_activity_enabled
+                    ),
+                    "quiet_hours_start": (
+                        notification.quiet_hours_start
+                    ),
+                    "quiet_hours_end": (
+                        notification.quiet_hours_end
+                    ),
+                }
+                if notification
+                else None
+            ),
+        }

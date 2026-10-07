@@ -319,3 +319,93 @@ def test_complete_onboarding_flow(client, db):
     db.refresh(invitation_code)
 
     assert invitation_code.used is True
+
+def test_get_personalization_endpoint(client):
+    email = f"{uuid4()}@example.com"
+    password = "Password123!"
+
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": email,
+            "password": password,
+            "display_name": "Retrieval User",
+        },
+    )
+
+    assert signup_response.status_code == 201
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    access_token = login_response.json()["access_token"]
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+    }
+
+    update_response = client.put(
+        "/api/v1/personalization",
+        headers=headers,
+        json={
+            "interests": [
+                "coding",
+                "music",
+            ],
+            "preferences": {
+                "theme": "dark",
+                "recommendation_style": "balanced",
+            },
+            "feature_preferences": {
+                "daily_drop": "high",
+                "games": "medium",
+            },
+            "notifications": {
+                "enabled": True,
+                "daily_drop_enabled": True,
+                "group_activity_enabled": False,
+                "quiet_hours_start": 23,
+                "quiet_hours_end": 8,
+            },
+        },
+    )
+
+    assert update_response.status_code == 200
+
+    response = client.get(
+        "/api/v1/personalization",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "configuration_id": None,
+        "configuration_name": None,
+        "interests": [
+            "coding",
+            "music",
+        ],
+        "preferences": {
+            "theme": "dark",
+            "recommendation_style": "balanced",
+        },
+        "feature_preferences": {
+            "daily_drop": "high",
+            "games": "medium",
+        },
+        "notifications": {
+            "enabled": True,
+            "daily_drop_enabled": True,
+            "group_activity_enabled": False,
+            "quiet_hours_start": 23,
+            "quiet_hours_end": 8,
+        },
+    }
