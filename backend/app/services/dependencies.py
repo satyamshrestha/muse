@@ -24,6 +24,9 @@ from app.repositories.user_repository import UserRepository
 from app.services.invitation_code_service import InvitationCodeService
 from app.services.personalization_service import PersonalizationService
 from app.services.user_service import UserService
+from app.repositories.friend_group_repository import FriendGroupRepository
+from app.repositories.group_membership_repository import GroupMembershipRepository
+from app.services.group_service import GroupService
 
 
 def get_user_service(
@@ -59,4 +62,15 @@ def get_personalization_service(
         user_preference_repository=user_preference_repository,
         feature_preference_repository=feature_preference_repository,
         notification_preference_repository=notification_preference_repository,
+    )
+
+def get_group_service(
+    db: Session = Depends(get_db),
+) -> GroupService:
+    group_repository = FriendGroupRepository(db)
+    membership_repository = GroupMembershipRepository(db)
+
+    return GroupService(
+        group_repository=group_repository,
+        membership_repository=membership_repository,
     )
