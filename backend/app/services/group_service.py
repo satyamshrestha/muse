@@ -1,7 +1,6 @@
-
 from uuid import UUID
 
-from app.exceptions.user_exceptions import UserNotFoundException
+from app.exceptions.group_exceptions import GroupNotFoundException
 from app.repositories.friend_group_repository import (
     FriendGroupRepository,
 )
@@ -59,6 +58,6 @@ class GroupService:
                 group_id=group_id,
             )
         ):
-            raise UserNotFoundException()
+            raise GroupNotFoundException()
 
         return group

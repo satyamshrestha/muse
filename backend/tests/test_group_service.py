@@ -1,9 +1,8 @@
-
 from uuid import uuid4
 
 import pytest
 
-from app.exceptions.user_exceptions import UserNotFoundException
+from app.exceptions.group_exceptions import GroupNotFoundException
 from app.models.friend_group import FriendGroup
 from app.models.group_membership import GroupMembership
 from app.models.user import User
@@ -97,7 +96,7 @@ def test_get_group_rejects_non_member(db):
 
     service = create_service(db)
 
-    with pytest.raises(UserNotFoundException):
+    with pytest.raises(GroupNotFoundException):
         service.get_group(user.id, group.id)
 
 
@@ -107,5 +106,5 @@ def test_get_group_rejects_unknown_group(db):
 
     service = create_service(db)
 
-    with pytest.raises(UserNotFoundException):
+    with pytest.raises(GroupNotFoundException):
         service.get_group(user.id, uuid4())
