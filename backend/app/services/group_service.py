@@ -1,11 +1,14 @@
+
 from uuid import UUID
 
+from app.exceptions.user_exceptions import UserNotFoundException
 from app.repositories.friend_group_repository import (
     FriendGroupRepository,
 )
 from app.repositories.group_membership_repository import (
     GroupMembershipRepository,
 )
+from app.models.friend_group import FriendGroup
 
 
 class GroupService:
@@ -21,10 +24,8 @@ class GroupService:
         self,
         user_id: UUID,
         name: str,
-    ):
-        group = self.group_repository.create(
-            name=name,
-        )
+    ) -> FriendGroup:
+        group = self.group_repository.create(name=name)
 
         self.membership_repository.create(
             user_id=user_id,
@@ -33,5 +34,31 @@ class GroupService:
 
         self.group_repository.db.commit()
         self.group_repository.db.refresh(group)
+
+        return group
+
+    def get_user_groups(
+        self,
+        user_id: UUID,
+    ) -> list[FriendGroup]:
+        return self.membership_repository.get_groups_for_user(
+            user_id
+        )
+
+    def get_group(
+        self,
+        user_id: UUID,
+        group_id: UUID,
+    ) -> FriendGroup:
+        group = self.group_repository.get_by_id(group_id)
+
+        if (
+            group is None
+            or not self.membership_repository.is_member(
+                user_id=user_id,
+                group_id=group_id,
+            )
+        ):
+            raise UserNotFoundException()
 
         return group
