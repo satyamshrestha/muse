@@ -139,3 +139,35 @@ def test_is_member_returns_false_without_membership(db):
     repository = GroupMembershipRepository(db)
 
     assert repository.is_member(user.id, group.id) is False
+
+def test_get_membership_returns_existing_membership(db):
+    user = create_test_user(db)
+    group = FriendGroup(name="MUSE Crew")
+    db.add(group)
+    db.flush()
+
+    membership = GroupMembership(
+        user_id=user.id,
+        group_id=group.id,
+    )
+    db.add(membership)
+    db.flush()
+
+    repository = GroupMembershipRepository(db)
+    result = repository.get_membership(user.id, group.id)
+
+    assert result is not None
+    assert result.user_id == user.id
+    assert result.group_id == group.id
+
+
+def test_get_membership_returns_none_without_membership(db):
+    user = create_test_user(db)
+    group = FriendGroup(name="MUSE Crew")
+    db.add(group)
+    db.flush()
+
+    repository = GroupMembershipRepository(db)
+    result = repository.get_membership(user.id, group.id)
+
+    assert result is None

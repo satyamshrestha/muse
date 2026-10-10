@@ -1,11 +1,10 @@
-
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.group_membership import GroupMembership
 from app.models.friend_group import FriendGroup
+from app.models.group_membership import GroupMembership
 
 
 class GroupMembershipRepository:
@@ -50,5 +49,15 @@ class GroupMembershipRepository:
             GroupMembership.user_id == user_id,
             GroupMembership.group_id == group_id,
         )
-
         return self.db.scalar(statement) is not None
+
+    def get_membership(
+        self,
+        user_id: UUID,
+        group_id: UUID,
+    ) -> GroupMembership | None:
+        statement = select(GroupMembership).where(
+            GroupMembership.user_id == user_id,
+            GroupMembership.group_id == group_id,
+        )
+        return self.db.scalar(statement)
