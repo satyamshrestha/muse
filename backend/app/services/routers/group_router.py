@@ -1,4 +1,3 @@
-
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -40,6 +39,21 @@ def list_groups(
     service: GroupService = Depends(get_group_service),
 ):
     return service.get_user_groups(user_id)
+
+
+@router.post(
+    "/{group_id}/join",
+    response_model=GroupResponse,
+)
+def join_group(
+    group_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    service: GroupService = Depends(get_group_service),
+):
+    return service.join_group(
+        user_id=user_id,
+        group_id=group_id,
+    )
 
 
 @router.get(
