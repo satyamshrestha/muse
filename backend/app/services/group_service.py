@@ -1,13 +1,16 @@
 from uuid import UUID
 
-from app.exceptions.group_exceptions import GroupNotFoundException
+from app.exceptions.group_exceptions import (
+    AlreadyGroupMemberException,
+    GroupNotFoundException,
+)
+from app.models.friend_group import FriendGroup
 from app.repositories.friend_group_repository import (
     FriendGroupRepository,
 )
 from app.repositories.group_membership_repository import (
     GroupMembershipRepository,
 )
-from app.models.friend_group import FriendGroup
 
 
 class GroupService:
@@ -59,5 +62,34 @@ class GroupService:
             )
         ):
             raise GroupNotFoundException()
+
+        return group
+
+    def join_group(
+        self,
+        user_id: UUID,
+        group_id: UUID,
+    ) -> FriendGroup:
+        group = self.group_repository.get_by_id(group_id)
+
+        if group is None:
+            raise GroupNotFoundException()
+
+        existing_membership = (
+            self.membership_repository.get_membership(
+                user_id=user_id,
+                group_id=group_id,
+            )
+        )
+
+        if existing_membership is not None:
+            raise AlreadyGroupMemberException()
+
+        self.membership_repository.create(
+            user_id=user_id,
+            group_id=group_id,
+        )
+
+        self.group_repository.db.commit()
 
         return group

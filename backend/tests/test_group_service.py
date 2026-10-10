@@ -2,7 +2,10 @@ from uuid import uuid4
 
 import pytest
 
-from app.exceptions.group_exceptions import GroupNotFoundException
+from app.exceptions.group_exceptions import (
+    AlreadyGroupMemberException,
+    GroupNotFoundException,
+)
 from app.models.friend_group import FriendGroup
 from app.models.group_membership import GroupMembership
 from app.models.user import User
@@ -108,3 +111,61 @@ def test_get_group_rejects_unknown_group(db):
 
     with pytest.raises(GroupNotFoundException):
         service.get_group(user.id, uuid4())
+
+
+def test_join_group_creates_membership(db):
+    user = create_test_user(db)
+    group = FriendGroup(name="MUSE Crew")
+    db.add(group)
+    db.commit()
+
+    service = create_service(db)
+
+    result = service.join_group(user.id, group.id)
+
+    assert result.id == group.id
+    assert result.name == "MUSE Crew"
+
+    membership = service.membership_repository.get_membership(
+        user_id=user.id,
+        group_id=group.id,
+    )
+    assert membership is not None
+
+
+def test_join_group_rejects_unknown_group(db):
+    user = create_test_user(db)
+    db.commit()
+
+    service = create_service(db)
+
+    with pytest.raises(GroupNotFoundException):
+        service.join_group(user.id, uuid4())
+
+
+def test_join_group_rejects_existing_membership(db):
+    user = create_test_user(db)
+    group = FriendGroup(name="MUSE Crew")
+    db.add(group)
+    db.flush()
+
+    db.add(
+        GroupMembership(
+            user_id=user.id,
+            group_id=group.id,
+        )
+    )
+    db.commit()
+
+    service = create_service(db)
+
+    with pytest.raises(AlreadyGroupMemberException):
+        service.join_group(user.id, group.id)
+
+    memberships = (
+        service.membership_repository.get_groups_for_user(user.id)
+    )
+    assert sum(
+        existing_group.id == group.id
+        for existing_group in memberships
+    ) == 1
