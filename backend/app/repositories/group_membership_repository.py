@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -78,3 +78,17 @@ class GroupMembershipRepository:
         )
 
         return list(self.db.scalars(statement))
+
+    def delete_membership(
+        self,
+        user_id: UUID,
+        group_id: UUID,
+    ) -> bool:
+        result = self.db.execute(
+            delete(GroupMembership).where(
+                GroupMembership.user_id == user_id,
+                GroupMembership.group_id == group_id,
+            )
+        )
+        self.db.flush()
+        return result.rowcount > 0

@@ -292,3 +292,118 @@ def test_get_group_members_requires_authentication(client):
     )
 
     assert response.status_code == 401
+
+
+
+def test_leave_group_keeps_group_for_remaining_members(client):
+    owner_headers = create_authenticated_user(client)
+    member_headers = create_authenticated_user(client)
+
+    create_response = client.post(
+        "/api/v1/groups",
+        headers=owner_headers,
+        json={"name": "MUSE Crew"},
+    )
+    assert create_response.status_code == 201
+    group_id = create_response.json()["id"]
+
+    join_response = client.post(
+        f"/api/v1/groups/{group_id}/join",
+        headers=member_headers,
+    )
+    assert join_response.status_code == 200
+
+    leave_response = client.delete(
+        f"/api/v1/groups/{group_id}/leave",
+        headers=owner_headers,
+    )
+    assert leave_response.status_code == 204
+
+    owner_group_response = client.get(
+        f"/api/v1/groups/{group_id}",
+        headers=owner_headers,
+    )
+    assert owner_group_response.status_code == 404
+
+    member_group_response = client.get(
+        f"/api/v1/groups/{group_id}",
+        headers=member_headers,
+    )
+    assert member_group_response.status_code == 200
+
+    members_response = client.get(
+        f"/api/v1/groups/{group_id}/members",
+        headers=member_headers,
+    )
+    assert members_response.status_code == 200
+    assert len(members_response.json()) == 1
+
+
+def test_last_member_leaving_deletes_group(client):
+    headers = create_authenticated_user(client)
+
+    create_response = client.post(
+        "/api/v1/groups",
+        headers=headers,
+        json={"name": "Temporary Group"},
+    )
+    assert create_response.status_code == 201
+    group_id = create_response.json()["id"]
+
+    leave_response = client.delete(
+        f"/api/v1/groups/{group_id}/leave",
+        headers=headers,
+    )
+    assert leave_response.status_code == 204
+
+    group_response = client.get(
+        f"/api/v1/groups/{group_id}",
+        headers=headers,
+    )
+    assert group_response.status_code == 404
+
+    groups_response = client.get(
+        "/api/v1/groups",
+        headers=headers,
+    )
+    assert groups_response.status_code == 200
+    assert all(
+        group["id"] != group_id
+        for group in groups_response.json()
+    )
+
+
+def test_non_member_cannot_leave_group(client):
+    owner_headers = create_authenticated_user(client)
+    other_headers = create_authenticated_user(client)
+
+    create_response = client.post(
+        "/api/v1/groups",
+        headers=owner_headers,
+        json={"name": "MUSE Crew"},
+    )
+    assert create_response.status_code == 201
+    group_id = create_response.json()["id"]
+
+    leave_response = client.delete(
+        f"/api/v1/groups/{group_id}/leave",
+        headers=other_headers,
+    )
+    assert leave_response.status_code == 404
+
+
+def test_leaving_unknown_group_returns_404(client):
+    headers = create_authenticated_user(client)
+
+    leave_response = client.delete(
+        f"/api/v1/groups/{uuid4()}/leave",
+        headers=headers,
+    )
+    assert leave_response.status_code == 404
+
+
+def test_leaving_group_requires_authentication(client):
+    leave_response = client.delete(
+        f"/api/v1/groups/{uuid4()}/leave",
+    )
+    assert leave_response.status_code == 401

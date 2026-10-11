@@ -84,3 +84,15 @@ def get_group_members(
         user_id=user_id,
         group_id=group_id,
     )
+
+
+@router.delete("/{group_id}/leave", status_code=204)
+def leave_group(
+    group_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    service: GroupService = Depends(get_group_service),
+):
+    service.leave_group(
+        user_id=user_id,
+        group_id=group_id,
+    )

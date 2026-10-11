@@ -1,7 +1,6 @@
-
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.friend_group import FriendGroup
@@ -23,3 +22,11 @@ class FriendGroupRepository:
                 FriendGroup.id == group_id
             )
         )
+
+    def delete(self, group_id: UUID) -> None:
+        self.db.execute(
+            delete(FriendGroup).where(
+                FriendGroup.id == group_id
+            )
+        )
+        self.db.flush()

@@ -113,3 +113,42 @@ class GroupService:
         self.group_repository.db.commit()
 
         return group
+
+    def leave_group(
+        self,
+        user_id: UUID,
+        group_id: UUID,
+    ) -> None:
+        db = self.group_repository.db
+
+        try:
+            group = self.group_repository.get_by_id(group_id)
+
+            if (
+                group is None
+                or not self.membership_repository.is_member(
+                    user_id=user_id,
+                    group_id=group_id,
+                )
+            ):
+                raise GroupNotFoundException()
+
+            self.membership_repository.delete_membership(
+                user_id=user_id,
+                group_id=group_id,
+            )
+
+            remaining_members = (
+                self.membership_repository.get_members_for_group(
+                    group_id=group_id,
+                )
+            )
+
+            if not remaining_members:
+                self.group_repository.delete(group_id)
+
+            db.commit()
+
+        except Exception:
+            db.rollback()
+            raise

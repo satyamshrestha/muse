@@ -215,3 +215,46 @@ def test_get_members_for_group_returns_empty_list_for_empty_group(db):
     repository = GroupMembershipRepository(db)
 
     assert repository.get_members_for_group(group.id) == []
+
+def test_delete_membership_removes_only_target_membership(db):
+    first_user = create_test_user(db)
+    second_user = create_test_user(db)
+    group = FriendGroup(name="MUSE Crew")
+    db.add(group)
+    db.flush()
+
+    db.add_all([
+        GroupMembership(
+            user_id=first_user.id,
+            group_id=group.id,
+        ),
+        GroupMembership(
+            user_id=second_user.id,
+            group_id=group.id,
+        ),
+    ])
+    db.commit()
+
+    repository = GroupMembershipRepository(db)
+    deleted = repository.delete_membership(
+        user_id=first_user.id,
+        group_id=group.id,
+    )
+    db.commit()
+
+    assert deleted is True
+    assert repository.is_member(first_user.id, group.id) is False
+    assert repository.is_member(second_user.id, group.id) is True
+
+
+def test_friend_group_repository_delete_removes_group(db):
+    group = FriendGroup(name="MUSE Crew")
+    db.add(group)
+    db.commit()
+    group_id = group.id
+
+    repository = FriendGroupRepository(db)
+    repository.delete(group_id)
+    db.commit()
+
+    assert repository.get_by_id(group_id) is None
