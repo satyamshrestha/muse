@@ -27,6 +27,7 @@ from app.services.user_service import UserService
 from app.repositories.friend_group_repository import FriendGroupRepository
 from app.repositories.group_membership_repository import GroupMembershipRepository
 from app.services.group_service import GroupService
+from app.repositories.group_invitation_repository import GroupInvitationRepository
 
 
 def get_user_service(
@@ -69,8 +70,10 @@ def get_group_service(
 ) -> GroupService:
     group_repository = FriendGroupRepository(db)
     membership_repository = GroupMembershipRepository(db)
+    invitation_repository=GroupInvitationRepository(db)
 
     return GroupService(
         group_repository=group_repository,
         membership_repository=membership_repository,
+        invitation_repository=invitation_repository,
     )

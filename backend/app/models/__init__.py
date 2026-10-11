@@ -14,6 +14,7 @@ from app.models.feature_preference import FeaturePreference
 from app.models.group_membership import GroupMembership
 from app.models.group_activity import GroupActivity
 from app.models.group_activity_response import GroupActivityResponse
+from app.models.group_invitation import GroupInvitation
 from app.models.group_recommendation import GroupRecommendation
 from app.models.invitation_code import InvitationCode
 from app.models.message_reaction import MessageReaction
@@ -64,5 +65,6 @@ __all__ = [
     "PlanParticipant",
     "Notification",
     "Device",
-    "GroupRecommendation"
+    "GroupRecommendation",
+    "GroupInvitation"
 ]

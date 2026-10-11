@@ -1,7 +1,8 @@
+from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 from uuid import uuid4
 
-from app.models.friend_group import FriendGroup
-from app.models.group_membership import GroupMembership
+from app.models.group_invitation import GroupInvitation
 
 
 def create_authenticated_user(client):
@@ -20,16 +21,40 @@ def create_authenticated_user(client):
 
     login = client.post(
         "/api/v1/auth/login",
-        json={
-            "email": email,
-            "password": password,
-        },
+        json={"email": email, "password": password},
     )
     assert login.status_code == 200
 
     return {
         "Authorization": f"Bearer {login.json()['access_token']}"
     }
+
+
+def create_group(client, headers, name="MUSE Crew"):
+    response = client.post(
+        "/api/v1/groups",
+        headers=headers,
+        json={"name": name},
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def create_invitation(client, headers, group_id):
+    response = client.post(
+        f"/api/v1/groups/{group_id}/invitations",
+        headers=headers,
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def redeem_invitation(client, headers, token):
+    return client.post(
+        "/api/v1/groups/join",
+        headers=headers,
+        json={"token": token},
+    )
 
 
 def test_create_group(client, db):
@@ -42,7 +67,6 @@ def test_create_group(client, db):
     )
 
     assert response.status_code == 201
-
     data = response.json()
     assert data["name"] == "MUSE Crew"
     assert data["id"]
@@ -51,7 +75,6 @@ def test_create_group(client, db):
         f"/api/v1/groups/{data['id']}",
         headers=headers,
     )
-
     assert group_response.status_code == 200
     assert group_response.json()["id"] == data["id"]
     assert group_response.json()["name"] == "MUSE Crew"
@@ -60,7 +83,6 @@ def test_create_group(client, db):
         "/api/v1/groups",
         headers=headers,
     )
-
     assert list_response.status_code == 200
     assert any(
         group["id"] == data["id"]
@@ -70,60 +92,35 @@ def test_create_group(client, db):
 
 def test_list_groups_returns_only_users_groups(client):
     headers = create_authenticated_user(client)
+    create_group(client, headers, "My Group")
 
-    created = client.post(
-        "/api/v1/groups",
-        headers=headers,
-        json={"name": "My Group"},
-    )
-    assert created.status_code == 201
-
-    response = client.get(
-        "/api/v1/groups",
-        headers=headers,
-    )
+    response = client.get("/api/v1/groups", headers=headers)
 
     assert response.status_code == 200
-    assert [group["name"] for group in response.json()] == [
-        "My Group"
-    ]
+    assert [group["name"] for group in response.json()] == ["My Group"]
 
 
 def test_get_group_for_member(client):
     headers = create_authenticated_user(client)
-
-    created = client.post(
-        "/api/v1/groups",
-        headers=headers,
-        json={"name": "MUSE Crew"},
-    )
-    assert created.status_code == 201
-    group_id = created.json()["id"]
+    group = create_group(client, headers)
 
     response = client.get(
-        f"/api/v1/groups/{group_id}",
+        f"/api/v1/groups/{group['id']}",
         headers=headers,
     )
 
     assert response.status_code == 200
-    assert response.json()["id"] == group_id
+    assert response.json()["id"] == group["id"]
     assert response.json()["name"] == "MUSE Crew"
 
 
 def test_get_group_denies_non_member(client):
     owner_headers = create_authenticated_user(client)
     other_headers = create_authenticated_user(client)
-
-    created = client.post(
-        "/api/v1/groups",
-        headers=owner_headers,
-        json={"name": "Private Group"},
-    )
-    assert created.status_code == 201
-    group_id = created.json()["id"]
+    group = create_group(client, owner_headers, "Private Group")
 
     response = client.get(
-        f"/api/v1/groups/{group_id}",
+        f"/api/v1/groups/{group['id']}",
         headers=other_headers,
     )
 
@@ -132,83 +129,84 @@ def test_get_group_denies_non_member(client):
 
 def test_list_groups_requires_authentication(client):
     response = client.get("/api/v1/groups")
-
     assert response.status_code == 401
 
 
 def test_get_group_requires_authentication(client):
-    response = client.get(
-        f"/api/v1/groups/{uuid4()}"
-    )
-
+    response = client.get(f"/api/v1/groups/{uuid4()}")
     assert response.status_code == 401
 
 
 def test_join_group_success(client):
     owner_headers = create_authenticated_user(client)
     member_headers = create_authenticated_user(client)
-
-    created = client.post(
-        "/api/v1/groups",
-        headers=owner_headers,
-        json={"name": "MUSE Crew"},
+    group = create_group(client, owner_headers)
+    invitation = create_invitation(
+        client, owner_headers, group["id"]
     )
-    assert created.status_code == 201
-    group_id = created.json()["id"]
 
-    response = client.post(
-        f"/api/v1/groups/{group_id}/join",
-        headers=member_headers,
+    response = redeem_invitation(
+        client, member_headers, invitation["token"]
     )
 
     assert response.status_code == 200
-    assert response.json()["id"] == group_id
+    assert response.json()["id"] == group["id"]
     assert response.json()["name"] == "MUSE Crew"
 
-    # Verify the new member can retrieve the group.
     group_response = client.get(
-        f"/api/v1/groups/{group_id}",
+        f"/api/v1/groups/{group['id']}",
         headers=member_headers,
     )
     assert group_response.status_code == 200
 
-    # Verify the group appears in the new member's group list.
     list_response = client.get(
         "/api/v1/groups",
         headers=member_headers,
     )
     assert list_response.status_code == 200
     assert any(
-        group["id"] == group_id
-        for group in list_response.json()
+        item["id"] == group["id"]
+        for item in list_response.json()
     )
 
 
-def test_join_group_rejects_unknown_group(client):
+def test_join_group_rejects_invalid_invitation(client):
     headers = create_authenticated_user(client)
 
-    response = client.post(
-        f"/api/v1/groups/{uuid4()}/join",
-        headers=headers,
-    )
+    response = redeem_invitation(client, headers, "x" * 32)
 
     assert response.status_code == 404
 
 
-def test_join_group_rejects_duplicate_membership(client):
-    headers = create_authenticated_user(client)
-
-    created = client.post(
-        "/api/v1/groups",
-        headers=headers,
-        json={"name": "MUSE Crew"},
+def test_join_group_rejects_reused_invitation(client):
+    owner_headers = create_authenticated_user(client)
+    first_member_headers = create_authenticated_user(client)
+    second_member_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
+    invitation = create_invitation(
+        client, owner_headers, group["id"]
     )
-    assert created.status_code == 201
-    group_id = created.json()["id"]
 
-    response = client.post(
-        f"/api/v1/groups/{group_id}/join",
-        headers=headers,
+    first_response = redeem_invitation(
+        client, first_member_headers, invitation["token"]
+    )
+    assert first_response.status_code == 200
+
+    second_response = redeem_invitation(
+        client, second_member_headers, invitation["token"]
+    )
+    assert second_response.status_code == 404
+
+
+def test_join_group_rejects_duplicate_membership(client):
+    owner_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
+    invitation = create_invitation(
+        client, owner_headers, group["id"]
+    )
+
+    response = redeem_invitation(
+        client, owner_headers, invitation["token"]
     )
 
     assert response.status_code == 409
@@ -216,31 +214,127 @@ def test_join_group_rejects_duplicate_membership(client):
 
 def test_join_group_requires_authentication(client):
     response = client.post(
-        f"/api/v1/groups/{uuid4()}/join",
+        "/api/v1/groups/join",
+        json={"token": "x" * 32},
+    )
+    assert response.status_code == 401
+
+
+def test_old_group_id_join_route_is_removed(client):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+
+    response = client.post(
+        f"/api/v1/groups/{group['id']}/join",
+        headers=headers,
     )
 
+    assert response.status_code == 404 or response.status_code == 405
+
+
+def test_create_invitation_requires_authentication(client):
+    response = client.post(
+        f"/api/v1/groups/{uuid4()}/invitations",
+    )
     assert response.status_code == 401
+
+
+def test_non_member_cannot_create_invitation(client):
+    owner_headers = create_authenticated_user(client)
+    other_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
+
+    response = client.post(
+        f"/api/v1/groups/{group['id']}/invitations",
+        headers=other_headers,
+    )
+
+    assert response.status_code == 404
+
+
+def test_create_invitation_returns_token_and_expiry(client):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+
+    response = client.post(
+        f"/api/v1/groups/{group['id']}/invitations",
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert isinstance(data["token"], str)
+    assert len(data["token"]) >= 32
+
+    expires_at = datetime.fromisoformat(
+        data["expires_at"].replace("Z", "+00:00")
+    )
+    now = datetime.now(timezone.utc)
+    assert now + timedelta(days=6) < expires_at
+    assert expires_at < now + timedelta(days=8)
+
+
+def test_invitation_stores_only_token_hash(client, db):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+
+    response = client.post(
+        f"/api/v1/groups/{group['id']}/invitations",
+        headers=headers,
+    )
+    assert response.status_code == 201
+
+    token = response.json()["token"]
+    stored = (
+        db.query(GroupInvitation)
+        .filter_by(group_id=group["id"])
+        .one()
+    )
+
+    assert stored.token_hash == sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+    assert stored.token_hash != token
+
+
+def test_expired_invitation_cannot_be_redeemed(client, db):
+    owner_headers = create_authenticated_user(client)
+    member_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
+    invitation = create_invitation(
+        client, owner_headers, group["id"]
+    )
+
+    stored = (
+        db.query(GroupInvitation)
+        .filter_by(group_id=group["id"])
+        .one()
+    )
+    stored.expires_at = datetime.now(timezone.utc) - timedelta(days=1)
+    db.commit()
+
+    response = redeem_invitation(
+        client, member_headers, invitation["token"]
+    )
+
+    assert response.status_code == 404
+
 
 def test_get_group_members_returns_members_for_group_member(client):
     owner_headers = create_authenticated_user(client)
     second_member_headers = create_authenticated_user(client)
-
-    created = client.post(
-        "/api/v1/groups",
-        headers=owner_headers,
-        json={"name": "MUSE Crew"},
+    group = create_group(client, owner_headers)
+    invitation = create_invitation(
+        client, owner_headers, group["id"]
     )
-    assert created.status_code == 201
-    group_id = created.json()["id"]
 
-    joined = client.post(
-        f"/api/v1/groups/{group_id}/join",
-        headers=second_member_headers,
+    joined = redeem_invitation(
+        client, second_member_headers, invitation["token"]
     )
     assert joined.status_code == 200
 
     response = client.get(
-        f"/api/v1/groups/{group_id}/members",
+        f"/api/v1/groups/{group['id']}/members",
         headers=owner_headers,
     )
 
@@ -249,7 +343,7 @@ def test_get_group_members_returns_members_for_group_member(client):
     assert len(members) == 2
     assert len({member["id"] for member in members}) == 2
     assert {member["display_name"] for member in members} == {
-        "Group Tester",
+        "Group Tester"
     }
     assert all("email" not in member for member in members)
     assert all("password_hash" not in member for member in members)
@@ -258,17 +352,10 @@ def test_get_group_members_returns_members_for_group_member(client):
 def test_get_group_members_denies_non_member(client):
     owner_headers = create_authenticated_user(client)
     other_headers = create_authenticated_user(client)
-
-    created = client.post(
-        "/api/v1/groups",
-        headers=owner_headers,
-        json={"name": "Private Group"},
-    )
-    assert created.status_code == 201
-    group_id = created.json()["id"]
+    group = create_group(client, owner_headers, "Private Group")
 
     response = client.get(
-        f"/api/v1/groups/{group_id}/members",
+        f"/api/v1/groups/{group['id']}/members",
         headers=other_headers,
     )
 
@@ -288,51 +375,44 @@ def test_get_group_members_rejects_unknown_group(client):
 
 def test_get_group_members_requires_authentication(client):
     response = client.get(
-        f"/api/v1/groups/{uuid4()}/members",
+        f"/api/v1/groups/{uuid4()}/members"
     )
-
     assert response.status_code == 401
-
 
 
 def test_leave_group_keeps_group_for_remaining_members(client):
     owner_headers = create_authenticated_user(client)
     member_headers = create_authenticated_user(client)
-
-    create_response = client.post(
-        "/api/v1/groups",
-        headers=owner_headers,
-        json={"name": "MUSE Crew"},
+    group = create_group(client, owner_headers)
+    invitation = create_invitation(
+        client, owner_headers, group["id"]
     )
-    assert create_response.status_code == 201
-    group_id = create_response.json()["id"]
 
-    join_response = client.post(
-        f"/api/v1/groups/{group_id}/join",
-        headers=member_headers,
+    joined = redeem_invitation(
+        client, member_headers, invitation["token"]
     )
-    assert join_response.status_code == 200
+    assert joined.status_code == 200
 
     leave_response = client.delete(
-        f"/api/v1/groups/{group_id}/leave",
+        f"/api/v1/groups/{group['id']}/leave",
         headers=owner_headers,
     )
     assert leave_response.status_code == 204
 
     owner_group_response = client.get(
-        f"/api/v1/groups/{group_id}",
+        f"/api/v1/groups/{group['id']}",
         headers=owner_headers,
     )
     assert owner_group_response.status_code == 404
 
     member_group_response = client.get(
-        f"/api/v1/groups/{group_id}",
+        f"/api/v1/groups/{group['id']}",
         headers=member_headers,
     )
     assert member_group_response.status_code == 200
 
     members_response = client.get(
-        f"/api/v1/groups/{group_id}/members",
+        f"/api/v1/groups/{group['id']}/members",
         headers=member_headers,
     )
     assert members_response.status_code == 200
@@ -341,23 +421,16 @@ def test_leave_group_keeps_group_for_remaining_members(client):
 
 def test_last_member_leaving_deletes_group(client):
     headers = create_authenticated_user(client)
-
-    create_response = client.post(
-        "/api/v1/groups",
-        headers=headers,
-        json={"name": "Temporary Group"},
-    )
-    assert create_response.status_code == 201
-    group_id = create_response.json()["id"]
+    group = create_group(client, headers, "Temporary Group")
 
     leave_response = client.delete(
-        f"/api/v1/groups/{group_id}/leave",
+        f"/api/v1/groups/{group['id']}/leave",
         headers=headers,
     )
     assert leave_response.status_code == 204
 
     group_response = client.get(
-        f"/api/v1/groups/{group_id}",
+        f"/api/v1/groups/{group['id']}",
         headers=headers,
     )
     assert group_response.status_code == 404
@@ -368,42 +441,37 @@ def test_last_member_leaving_deletes_group(client):
     )
     assert groups_response.status_code == 200
     assert all(
-        group["id"] != group_id
-        for group in groups_response.json()
+        item["id"] != group["id"]
+        for item in groups_response.json()
     )
 
 
 def test_non_member_cannot_leave_group(client):
     owner_headers = create_authenticated_user(client)
     other_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
 
-    create_response = client.post(
-        "/api/v1/groups",
-        headers=owner_headers,
-        json={"name": "MUSE Crew"},
-    )
-    assert create_response.status_code == 201
-    group_id = create_response.json()["id"]
-
-    leave_response = client.delete(
-        f"/api/v1/groups/{group_id}/leave",
+    response = client.delete(
+        f"/api/v1/groups/{group['id']}/leave",
         headers=other_headers,
     )
-    assert leave_response.status_code == 404
+
+    assert response.status_code == 404
 
 
 def test_leaving_unknown_group_returns_404(client):
     headers = create_authenticated_user(client)
 
-    leave_response = client.delete(
+    response = client.delete(
         f"/api/v1/groups/{uuid4()}/leave",
         headers=headers,
     )
-    assert leave_response.status_code == 404
+
+    assert response.status_code == 404
 
 
 def test_leaving_group_requires_authentication(client):
-    leave_response = client.delete(
-        f"/api/v1/groups/{uuid4()}/leave",
+    response = client.delete(
+        f"/api/v1/groups/{uuid4()}/leave"
     )
-    assert leave_response.status_code == 401
+    assert response.status_code == 401
