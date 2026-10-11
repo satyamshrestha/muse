@@ -52,6 +52,40 @@ def add_member(db, user_id, group_id) -> None:
     db.commit()
 
 
+def test_create_group_rolls_back_when_membership_creation_fails(
+    db,
+    monkeypatch,
+):
+    user = create_test_user(db)
+    db.commit()
+
+    service = create_service(db)
+    group_name = "Rollback Test Group"
+
+    def fail_membership_creation(*args, **kwargs):
+        raise RuntimeError("Simulated membership creation failure")
+
+    monkeypatch.setattr(
+        service.membership_repository,
+        "create",
+        fail_membership_creation,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Simulated membership creation failure",
+    ):
+        service.create_group(user_id=user.id, name=group_name)
+
+    remaining_group = (
+        db.query(FriendGroup)
+        .filter_by(name=group_name)
+        .first()
+    )
+
+    assert remaining_group is None
+
+
 def test_get_user_groups_returns_only_member_groups(db):
     user = create_test_user(db)
 
@@ -64,8 +98,14 @@ def test_get_user_groups_returns_only_member_groups(db):
 
     db.add_all(
         [
-            GroupMembership(user_id=user.id, group_id=first_group.id),
-            GroupMembership(user_id=user.id, group_id=second_group.id),
+            GroupMembership(
+                user_id=user.id,
+                group_id=first_group.id,
+            ),
+            GroupMembership(
+                user_id=user.id,
+                group_id=second_group.id,
+            ),
         ]
     )
     db.commit()
@@ -140,6 +180,7 @@ def test_join_group_with_invitation_creates_membership(db):
         user_id=new_member.id,
         group_id=group.id,
     )
+
     assert membership is not None
 
 
@@ -167,7 +208,10 @@ def test_join_group_with_invitation_rejects_existing_membership(db):
 
     db.add_all(
         [
-            GroupMembership(user_id=owner.id, group_id=group.id),
+            GroupMembership(
+                user_id=owner.id,
+                group_id=group.id,
+            ),
             GroupMembership(
                 user_id=existing_member.id,
                 group_id=group.id,
@@ -188,15 +232,16 @@ def test_join_group_with_invitation_rejects_existing_membership(db):
     memberships = service.membership_repository.get_groups_for_user(
         existing_member.id
     )
+
     assert sum(
         existing_group.id == group.id
         for existing_group in memberships
     ) == 1
 
-    # A failed redemption must not consume the invitation.
     redeemed_invitation = (
         db.query(GroupInvitation)
         .filter_by(group_id=group.id)
         .one()
     )
+
     assert redeemed_invitation.redeemed_at is None
