@@ -65,6 +65,26 @@ class GroupService:
 
         return group
 
+    def get_group_members(
+        self,
+        user_id: UUID,
+        group_id: UUID,
+    ):
+        group = self.group_repository.get_by_id(group_id)
+
+        if (
+            group is None
+            or not self.membership_repository.is_member(
+                user_id=user_id,
+                group_id=group_id,
+            )
+        ):
+            raise GroupNotFoundException()
+
+        return self.membership_repository.get_members_for_group(
+            group_id=group_id,
+        )
+
     def join_group(
         self,
         user_id: UUID,

@@ -220,3 +220,75 @@ def test_join_group_requires_authentication(client):
     )
 
     assert response.status_code == 401
+
+def test_get_group_members_returns_members_for_group_member(client):
+    owner_headers = create_authenticated_user(client)
+    second_member_headers = create_authenticated_user(client)
+
+    created = client.post(
+        "/api/v1/groups",
+        headers=owner_headers,
+        json={"name": "MUSE Crew"},
+    )
+    assert created.status_code == 201
+    group_id = created.json()["id"]
+
+    joined = client.post(
+        f"/api/v1/groups/{group_id}/join",
+        headers=second_member_headers,
+    )
+    assert joined.status_code == 200
+
+    response = client.get(
+        f"/api/v1/groups/{group_id}/members",
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 200
+    members = response.json()
+    assert len(members) == 2
+    assert len({member["id"] for member in members}) == 2
+    assert {member["display_name"] for member in members} == {
+        "Group Tester",
+    }
+    assert all("email" not in member for member in members)
+    assert all("password_hash" not in member for member in members)
+
+
+def test_get_group_members_denies_non_member(client):
+    owner_headers = create_authenticated_user(client)
+    other_headers = create_authenticated_user(client)
+
+    created = client.post(
+        "/api/v1/groups",
+        headers=owner_headers,
+        json={"name": "Private Group"},
+    )
+    assert created.status_code == 201
+    group_id = created.json()["id"]
+
+    response = client.get(
+        f"/api/v1/groups/{group_id}/members",
+        headers=other_headers,
+    )
+
+    assert response.status_code == 404
+
+
+def test_get_group_members_rejects_unknown_group(client):
+    headers = create_authenticated_user(client)
+
+    response = client.get(
+        f"/api/v1/groups/{uuid4()}/members",
+        headers=headers,
+    )
+
+    assert response.status_code == 404
+
+
+def test_get_group_members_requires_authentication(client):
+    response = client.get(
+        f"/api/v1/groups/{uuid4()}/members",
+    )
+
+    assert response.status_code == 401

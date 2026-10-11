@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from app.auth.jwt import get_current_user_id
-from app.schemas.group_schema import GroupCreate, GroupResponse
+from app.schemas.group_schema import GroupCreate, GroupResponse, GroupMemberResponse
 from app.services.dependencies import get_group_service
 from app.services.group_service import GroupService
 
@@ -66,6 +66,21 @@ def get_group(
     service: GroupService = Depends(get_group_service),
 ):
     return service.get_group(
+        user_id=user_id,
+        group_id=group_id,
+    )
+
+
+@router.get(
+    "/{group_id}/members",
+    response_model=list[GroupMemberResponse],
+)
+def get_group_members(
+    group_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    service: GroupService = Depends(get_group_service),
+):
+    return service.get_group_members(
         user_id=user_id,
         group_id=group_id,
     )

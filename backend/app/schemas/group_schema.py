@@ -13,3 +13,8 @@ class GroupCreate(BaseModel):
 class GroupResponse(BaseModel):
     id: UUID
     name: str
+
+
+class GroupMemberResponse(BaseModel):
+    id: UUID
+    display_name: str
