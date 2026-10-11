@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.user import User
 from app.models.friend_group import FriendGroup
 from app.models.group_membership import GroupMembership
 
@@ -61,3 +62,19 @@ class GroupMembershipRepository:
             GroupMembership.group_id == group_id,
         )
         return self.db.scalar(statement)
+
+    def get_members_for_group(
+        self,
+        group_id: UUID,
+    ) -> list[User]:
+        statement = (
+            select(User)
+            .join(
+                GroupMembership,
+                GroupMembership.user_id == User.id,
+            )
+            .where(GroupMembership.group_id == group_id)
+            .order_by(User.created_at.asc())
+        )
+
+        return list(self.db.scalars(statement))

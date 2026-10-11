@@ -171,3 +171,47 @@ def test_get_membership_returns_none_without_membership(db):
     result = repository.get_membership(user.id, group.id)
 
     assert result is None
+
+def test_get_members_for_group_returns_only_group_members(db):
+    first_user = create_test_user(db)
+    second_user = create_test_user(db)
+    unrelated_user = create_test_user(db)
+
+    group = FriendGroup(name="MUSE Crew")
+    other_group = FriendGroup(name="Other Group")
+    db.add_all([group, other_group])
+    db.flush()
+
+    db.add_all([
+        GroupMembership(
+            user_id=first_user.id,
+            group_id=group.id,
+        ),
+        GroupMembership(
+            user_id=second_user.id,
+            group_id=group.id,
+        ),
+        GroupMembership(
+            user_id=unrelated_user.id,
+            group_id=other_group.id,
+        ),
+    ])
+    db.commit()
+
+    repository = GroupMembershipRepository(db)
+    members = repository.get_members_for_group(group.id)
+
+    assert {user.id for user in members} == {
+        first_user.id,
+        second_user.id,
+    }
+
+
+def test_get_members_for_group_returns_empty_list_for_empty_group(db):
+    group = FriendGroup(name="Empty Group")
+    db.add(group)
+    db.commit()
+
+    repository = GroupMembershipRepository(db)
+
+    assert repository.get_members_for_group(group.id) == []
