@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.models.group_invitation import GroupInvitation
@@ -39,9 +39,32 @@ class GroupInvitationRepository:
             .where(
                 GroupInvitation.token_hash == token_hash,
                 GroupInvitation.redeemed_at.is_(None),
+                GroupInvitation.revoked_at.is_(None),
                 GroupInvitation.expires_at > now,
             )
             .values(redeemed_at=now)
+            .returning(GroupInvitation)
+        )
+
+        return self.db.scalars(statement).one_or_none()
+
+    def revoke_if_valid(
+        self,
+        invitation_id: UUID,
+        group_id: UUID,
+    ) -> GroupInvitation | None:
+        now = datetime.now(timezone.utc)
+
+        statement = (
+            update(GroupInvitation)
+            .where(
+                GroupInvitation.id == invitation_id,
+                GroupInvitation.group_id == group_id,
+                GroupInvitation.redeemed_at.is_(None),
+                GroupInvitation.revoked_at.is_(None),
+                GroupInvitation.expires_at > now,
+            )
+            .values(revoked_at=now)
             .returning(GroupInvitation)
         )
 

@@ -57,6 +57,21 @@ def redeem_invitation(client, headers, token):
     )
 
 
+def revoke_invitation(client, headers, group_id, invitation_id):
+    return client.delete(
+        f"/api/v1/groups/{group_id}/invitations/{invitation_id}",
+        headers=headers,
+    )
+
+
+def get_stored_invitation(db, group_id):
+    return (
+        db.query(GroupInvitation)
+        .filter_by(group_id=group_id)
+        .one()
+    )
+
+
 def test_create_group(client, db):
     headers = create_authenticated_user(client)
 
@@ -229,7 +244,7 @@ def test_old_group_id_join_route_is_removed(client):
         headers=headers,
     )
 
-    assert response.status_code == 404 or response.status_code == 405
+    assert response.status_code in (404, 405)
 
 
 def test_create_invitation_requires_authentication(client):
@@ -285,16 +300,13 @@ def test_invitation_stores_only_token_hash(client, db):
     assert response.status_code == 201
 
     token = response.json()["token"]
-    stored = (
-        db.query(GroupInvitation)
-        .filter_by(group_id=group["id"])
-        .one()
-    )
+    stored = get_stored_invitation(db, group["id"])
 
     assert stored.token_hash == sha256(
         token.encode("utf-8")
     ).hexdigest()
     assert stored.token_hash != token
+    assert stored.revoked_at is None
 
 
 def test_expired_invitation_cannot_be_redeemed(client, db):
@@ -305,11 +317,7 @@ def test_expired_invitation_cannot_be_redeemed(client, db):
         client, owner_headers, group["id"]
     )
 
-    stored = (
-        db.query(GroupInvitation)
-        .filter_by(group_id=group["id"])
-        .one()
-    )
+    stored = get_stored_invitation(db, group["id"])
     stored.expires_at = datetime.now(timezone.utc) - timedelta(days=1)
     db.commit()
 
@@ -318,6 +326,192 @@ def test_expired_invitation_cannot_be_redeemed(client, db):
     )
 
     assert response.status_code == 404
+
+
+def test_revoke_invitation_success(client, db):
+    owner_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
+    create_invitation(client, owner_headers, group["id"])
+
+    stored = get_stored_invitation(db, group["id"])
+
+    response = revoke_invitation(
+        client,
+        owner_headers,
+        group["id"],
+        stored.id,
+    )
+
+    assert response.status_code == 204
+
+    db.refresh(stored)
+    assert stored.revoked_at is not None
+    assert stored.redeemed_at is None
+
+
+def test_revoked_invitation_cannot_be_redeemed(client, db):
+    owner_headers = create_authenticated_user(client)
+    member_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
+    invitation = create_invitation(
+        client, owner_headers, group["id"]
+    )
+
+    stored = get_stored_invitation(db, group["id"])
+
+    revoke_response = revoke_invitation(
+        client,
+        owner_headers,
+        group["id"],
+        stored.id,
+    )
+    assert revoke_response.status_code == 204
+
+    redeem_response = redeem_invitation(
+        client,
+        member_headers,
+        invitation["token"],
+    )
+    assert redeem_response.status_code == 404
+
+    db.refresh(stored)
+    assert stored.revoked_at is not None
+    assert stored.redeemed_at is None
+
+
+def test_non_member_cannot_revoke_invitation(client, db):
+    owner_headers = create_authenticated_user(client)
+    other_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
+    create_invitation(client, owner_headers, group["id"])
+
+    stored = get_stored_invitation(db, group["id"])
+
+    response = revoke_invitation(
+        client,
+        other_headers,
+        group["id"],
+        stored.id,
+    )
+
+    assert response.status_code == 404
+
+    db.refresh(stored)
+    assert stored.revoked_at is None
+
+
+def test_revoke_invitation_requires_authentication(client):
+    response = client.delete(
+        f"/api/v1/groups/{uuid4()}/invitations/{uuid4()}",
+    )
+
+    assert response.status_code == 401
+
+
+def test_revoke_invitation_rejects_unknown_invitation(client):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+
+    response = revoke_invitation(
+        client,
+        headers,
+        group["id"],
+        uuid4(),
+    )
+
+    assert response.status_code == 404
+
+
+def test_revoke_invitation_rejects_already_revoked_invitation(
+    client,
+    db,
+):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+    create_invitation(client, headers, group["id"])
+
+    stored = get_stored_invitation(db, group["id"])
+
+    first_response = revoke_invitation(
+        client, headers, group["id"], stored.id
+    )
+    assert first_response.status_code == 204
+
+    second_response = revoke_invitation(
+        client, headers, group["id"], stored.id
+    )
+    assert second_response.status_code == 404
+
+
+def test_revoke_invitation_rejects_already_redeemed_invitation(
+    client,
+    db,
+):
+    owner_headers = create_authenticated_user(client)
+    member_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
+    invitation = create_invitation(
+        client, owner_headers, group["id"]
+    )
+
+    redeem_response = redeem_invitation(
+        client, member_headers, invitation["token"]
+    )
+    assert redeem_response.status_code == 200
+
+    stored = get_stored_invitation(db, group["id"])
+
+    revoke_response = revoke_invitation(
+        client,
+        owner_headers,
+        group["id"],
+        stored.id,
+    )
+
+    assert revoke_response.status_code == 404
+
+    db.refresh(stored)
+    assert stored.redeemed_at is not None
+    assert stored.revoked_at is None
+
+
+def test_revoking_one_invitation_does_not_invalidate_another(client, db):
+    owner_headers = create_authenticated_user(client)
+    first_member_headers = create_authenticated_user(client)
+    second_member_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
+
+    first_invitation = create_invitation(client, owner_headers, group["id"])
+    second_invitation = create_invitation(client, owner_headers, group["id"])
+
+    first_hash = sha256(first_invitation["token"].encode("utf-8")).hexdigest()
+    first_record = (
+        db.query(GroupInvitation)
+        .filter_by(token_hash=first_hash)
+        .one()
+    )
+
+    revoke_response = revoke_invitation(
+        client,
+        owner_headers,
+        group["id"],
+        str(first_record.id),
+    )
+    assert revoke_response.status_code == 204
+
+    first_join = redeem_invitation(
+        client,
+        first_member_headers,
+        first_invitation["token"],
+    )
+    assert first_join.status_code == 404
+
+    second_join = redeem_invitation(
+        client,
+        second_member_headers,
+        second_invitation["token"],
+    )
+    assert second_join.status_code == 200
 
 
 def test_get_group_members_returns_members_for_group_member(client):

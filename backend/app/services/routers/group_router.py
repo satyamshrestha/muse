@@ -87,7 +87,27 @@ def create_group_invitation(
     return service.create_invitation(user_id=user_id, group_id=group_id)
 
 
-@router.delete("/{group_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{group_id}/invitations/{invitation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def revoke_group_invitation(
+    group_id: UUID,
+    invitation_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    service: GroupService = Depends(get_group_service),
+):
+    service.revoke_invitation(
+        user_id=user_id,
+        group_id=group_id,
+        invitation_id=invitation_id,
+    )
+
+
+@router.delete(
+    "/{group_id}/leave",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 def leave_group(
     group_id: UUID,
     user_id: UUID = Depends(get_current_user_id),

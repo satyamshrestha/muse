@@ -102,8 +102,42 @@ class GroupService:
             db.rollback()
             raise
 
-        # The raw token is returned only at creation time.
         return {"token": token, "expires_at": expires_at}
+
+    def revoke_invitation(
+        self,
+        user_id: UUID,
+        group_id: UUID,
+        invitation_id: UUID,
+    ) -> None:
+        db = self.group_repository.db
+
+        try:
+            group = self.group_repository.get_by_id(group_id)
+            if (
+                group is None
+                or not self.membership_repository.is_member(
+                    user_id=user_id,
+                    group_id=group_id,
+                )
+            ):
+                raise GroupNotFoundException()
+
+            invitation = self.invitation_repository.revoke_if_valid(
+                invitation_id=invitation_id,
+                group_id=group_id,
+            )
+
+            if invitation is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Invitation not found or no longer valid",
+                )
+
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
 
     def join_group_with_invitation(
         self,
@@ -114,7 +148,6 @@ class GroupService:
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
 
         try:
-            # Atomic database update: only one request can redeem this token.
             invitation = self.invitation_repository.redeem_if_valid(
                 token_hash=token_hash
             )
@@ -143,7 +176,6 @@ class GroupService:
                 group_id=invitation.group_id,
             )
 
-            # Membership creation and token redemption commit together.
             db.commit()
             return group
 
