@@ -49,26 +49,33 @@ class PersonalizationService:
         user_id: UUID,
         code: str,
     ):
-        user = self.user_repository.get_by_id(user_id)
+        db = self.user_repository.db
 
-        if not user:
-            raise UserNotFoundException()
+        try:
+            user = self.user_repository.get_by_id(user_id)
 
-        configuration_key = self.invitation_service.claim(code)
+            if not user:
+                raise UserNotFoundException()
 
-        configuration = self.configuration_repository.get_by_name(
-            configuration_key
-        )
+            configuration_key = self.invitation_service.claim(code)
 
-        if not configuration:
-            raise ValueError("Base configuration not found")
+            configuration = self.configuration_repository.get_by_name(
+                configuration_key
+            )
 
-        user.base_configuration_id = configuration.id
+            if not configuration:
+                raise ValueError("Base configuration not found")
 
-        self.user_repository.db.commit()
-        self.user_repository.db.refresh(user)
+            user.base_configuration_id = configuration.id
 
-        return configuration
+            db.commit()
+            db.refresh(user)
+
+            return configuration
+
+        except Exception:
+            db.rollback()
+            raise
 
     def save_personalization(
         self,

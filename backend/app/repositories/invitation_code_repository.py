@@ -30,7 +30,4 @@ class InvitationCodeRepository:
             .returning(InvitationCode.configuration_key)
         )
 
-        configuration_key = self.db.scalar(statement)
-        self.db.commit()
-
-        return configuration_key
+        return self.db.scalar(statement)
