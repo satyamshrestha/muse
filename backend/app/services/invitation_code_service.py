@@ -17,7 +17,7 @@ class InvitationCodeService:
     def claim(self, code: str) -> str:
         invitation = self.repository.get_by_code(code)
 
-        if not invitation:
+        if invitation is None:
             raise InvitationCodeNotFoundException()
 
         if invitation.used:
@@ -29,8 +29,9 @@ class InvitationCodeService:
         ):
             raise InvitationCodeExpiredException()
 
-        configuration_key = invitation.configuration_key
+        configuration_key = self.repository.claim_if_unused(code)
 
-        self.repository.consume(invitation)
+        if configuration_key is None:
+            raise InvitationCodeAlreadyUsedException()
 
         return configuration_key

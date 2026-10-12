@@ -49,6 +49,10 @@ def test_claim_valid_invitation(db):
 
     assert result == "default"
 
+    invitation = repository.get_by_code("TEST123")
+    assert invitation is not None
+    assert invitation.used is True
+
 
 def test_claim_invalid_invitation(db):
     repository = InvitationCodeRepository(db)
@@ -73,9 +77,7 @@ def test_claim_used_invitation(db):
 
 
 def test_claim_expired_invitation(db):
-    expired_at = datetime.now(timezone.utc) - timedelta(
-        minutes=1
-    )
+    expired_at = datetime.now(timezone.utc) - timedelta(minutes=1)
 
     create_invitation(
         db,
@@ -88,3 +90,26 @@ def test_claim_expired_invitation(db):
 
     with pytest.raises(InvitationCodeExpiredException):
         service.claim("EXPIRED123")
+
+
+def test_claim_rejects_code_claimed_after_initial_validation(db, monkeypatch):
+    create_invitation(
+        db,
+        code="RACE123",
+        configuration_key="default",
+    )
+
+    repository = InvitationCodeRepository(db)
+    service = InvitationCodeService(repository)
+
+    def simulate_concurrent_claim(code: str) -> None:
+        return None
+
+    monkeypatch.setattr(
+        repository,
+        "claim_if_unused",
+        simulate_concurrent_claim,
+    )
+
+    with pytest.raises(InvitationCodeAlreadyUsedException):
+        service.claim("RACE123")
