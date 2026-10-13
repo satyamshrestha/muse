@@ -1,4 +1,3 @@
-
 from uuid import uuid4
 
 from app.models.friend_group import FriendGroup
