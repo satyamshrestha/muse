@@ -28,6 +28,8 @@ from app.repositories.friend_group_repository import FriendGroupRepository
 from app.repositories.group_membership_repository import GroupMembershipRepository
 from app.services.group_service import GroupService
 from app.repositories.group_invitation_repository import GroupInvitationRepository
+from app.repositories.device_repository import DeviceRepository
+from app.services.device_service import DeviceService
 
 
 def get_user_service(
@@ -77,3 +79,8 @@ def get_group_service(
         membership_repository=membership_repository,
         invitation_repository=invitation_repository,
     )
+
+def get_device_service(
+    db: Session = Depends(get_db),
+) -> DeviceService:
+    return DeviceService(DeviceRepository(db))
