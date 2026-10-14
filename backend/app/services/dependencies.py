@@ -30,6 +30,8 @@ from app.services.group_service import GroupService
 from app.repositories.group_invitation_repository import GroupInvitationRepository
 from app.repositories.device_repository import DeviceRepository
 from app.services.device_service import DeviceService
+from app.repositories.notification_repository import NotificationRepository
+from app.services.notification_service import NotificationService
 
 
 def get_user_service(
@@ -84,3 +86,11 @@ def get_device_service(
     db: Session = Depends(get_db),
 ) -> DeviceService:
     return DeviceService(DeviceRepository(db))
+
+def get_notification_service(
+    db: Session = Depends(get_db),
+) -> NotificationService:
+    return NotificationService(
+        repository=NotificationRepository(db),
+        preference_repository=NotificationPreferenceRepository(db),
+    )
