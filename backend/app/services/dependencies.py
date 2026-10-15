@@ -2,36 +2,26 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.repositories.base_configuration_repository import (
-    BaseConfigurationRepository,
-)
-from app.repositories.feature_preference_repository import (
-    FeaturePreferenceRepository,
-)
-from app.repositories.invitation_code_repository import (
-    InvitationCodeRepository,
-)
-from app.repositories.notification_preference_repository import (
-    NotificationPreferenceRepository,
-)
-from app.repositories.user_interest_repository import (
-    UserInterestRepository,
-)
-from app.repositories.user_preference_repository import (
-    UserPreferenceRepository,
-)
+from app.repositories.base_configuration_repository import BaseConfigurationRepository
+from app.repositories.feature_preference_repository import FeaturePreferenceRepository
+from app.repositories.invitation_code_repository import InvitationCodeRepository
+from app.repositories.notification_preference_repository import NotificationPreferenceRepository
+from app.repositories.user_interest_repository import UserInterestRepository
+from app.repositories.user_preference_repository import UserPreferenceRepository
+from app.repositories.friend_group_repository import FriendGroupRepository
+from app.repositories.group_membership_repository import GroupMembershipRepository
+from app.repositories.reminder_repository import ReminderRepository
+from app.repositories.group_invitation_repository import GroupInvitationRepository
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.user_repository import UserRepository
 from app.services.invitation_code_service import InvitationCodeService
 from app.services.personalization_service import PersonalizationService
 from app.services.user_service import UserService
-from app.repositories.friend_group_repository import FriendGroupRepository
-from app.repositories.group_membership_repository import GroupMembershipRepository
 from app.services.group_service import GroupService
-from app.repositories.group_invitation_repository import GroupInvitationRepository
 from app.repositories.device_repository import DeviceRepository
 from app.services.device_service import DeviceService
-from app.repositories.notification_repository import NotificationRepository
 from app.services.notification_service import NotificationService
+from app.services.reminder_service import ReminderService
 
 
 def get_user_service(
@@ -94,3 +84,6 @@ def get_notification_service(
         repository=NotificationRepository(db),
         preference_repository=NotificationPreferenceRepository(db),
     )
+
+def get_reminder_service(db=Depends(get_db)) -> ReminderService:
+    return ReminderService(db)

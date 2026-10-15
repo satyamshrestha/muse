@@ -6,6 +6,7 @@ from app.services.routers import (
     group_router,
     notification_router,
     personalization_router,
+    reminder_router,
 )
 
 api = APIRouter(prefix="/api/v1")
@@ -15,3 +16,4 @@ api.include_router(personalization_router.router)
 api.include_router(group_router.router)
 api.include_router(device_router.router)
 api.include_router(notification_router.router)
+api.include_router(reminder_router.router)
