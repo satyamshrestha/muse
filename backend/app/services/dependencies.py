@@ -22,6 +22,7 @@ from app.repositories.device_repository import DeviceRepository
 from app.services.device_service import DeviceService
 from app.services.notification_service import NotificationService
 from app.services.reminder_service import ReminderService
+from app.services.user_interest_service import UserInterestService
 
 
 def get_user_service(
@@ -87,3 +88,8 @@ def get_notification_service(
 
 def get_reminder_service(db=Depends(get_db)) -> ReminderService:
     return ReminderService(db)
+
+def get_user_interest_service(
+    db=Depends(get_db),
+) -> UserInterestService:
+    return UserInterestService(db)
