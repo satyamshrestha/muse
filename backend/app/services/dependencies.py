@@ -23,6 +23,7 @@ from app.services.device_service import DeviceService
 from app.services.notification_service import NotificationService
 from app.services.reminder_service import ReminderService
 from app.services.user_interest_service import UserInterestService
+from app.services.mood_entry_service import MoodEntryService
 
 
 def get_user_service(
@@ -73,14 +74,10 @@ def get_group_service(
         invitation_repository=invitation_repository,
     )
 
-def get_device_service(
-    db: Session = Depends(get_db),
-) -> DeviceService:
+def get_device_service(db: Session = Depends(get_db)) -> DeviceService:
     return DeviceService(DeviceRepository(db))
 
-def get_notification_service(
-    db: Session = Depends(get_db),
-) -> NotificationService:
+def get_notification_service(db: Session = Depends(get_db)) -> NotificationService:
     return NotificationService(
         repository=NotificationRepository(db),
         preference_repository=NotificationPreferenceRepository(db),
@@ -89,7 +86,8 @@ def get_notification_service(
 def get_reminder_service(db=Depends(get_db)) -> ReminderService:
     return ReminderService(db)
 
-def get_user_interest_service(
-    db=Depends(get_db),
-) -> UserInterestService:
+def get_user_interest_service(db=Depends(get_db)) -> UserInterestService:
     return UserInterestService(db)
+
+def get_mood_entry_service(db=Depends(get_db)) -> MoodEntryService:
+    return MoodEntryService(db)
