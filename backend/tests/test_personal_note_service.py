@@ -1,167 +1,165 @@
-from uuid import UUID
+from uuid import uuid4
 
+import pytest
 from sqlalchemy.orm import Session
 
-from app.models.personal_note import PersonalNote
-from app.repositories.personal_note_repository import PersonalNoteRepository
+from app.models.user import User
+from app.services.personal_note_service import (
+    PersonalNoteNotFoundError,
+    PersonalNoteService,
+    PersonalNoteValidationError,
+)
 
 
-class PersonalNoteValidationError(Exception):
-    pass
+def create_user(db: Session) -> User:
+    user = User(
+        email=f"{uuid4().hex}@example.com",
+        password_hash="test-hash",
+        display_name="Personal Note Service Test User",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
 
-class PersonalNoteNotFoundError(Exception):
-    pass
+def test_create_normalizes_title_and_content(db: Session):
+    user = create_user(db)
+    service = PersonalNoteService(db)
+
+    note = service.create(
+        user.id,
+        "  Study ideas  ",
+        "  Review the project plan.  ",
+    )
+
+    assert note.title == "Study ideas"
+    assert note.content == "Review the project plan."
 
 
-class PersonalNoteService:
-    def __init__(self, db: Session):
-        self.db = db
-        self.repository = PersonalNoteRepository(db)
+@pytest.mark.parametrize("title", ["", "   ", "x" * 256, None])
+def test_create_rejects_invalid_title(db: Session, title):
+    user = create_user(db)
+    service = PersonalNoteService(db)
 
-    @staticmethod
-    def _validate_title(title: str) -> str:
-        if not isinstance(title, str):
-            raise PersonalNoteValidationError("Title must be a string.")
+    with pytest.raises(PersonalNoteValidationError):
+        service.create(user.id, title, "Valid content")
 
-        title = title.strip()
 
-        if not title:
-            raise PersonalNoteValidationError("Title cannot be empty.")
+@pytest.mark.parametrize("content", ["", "   ", None])
+def test_create_rejects_empty_content(db: Session, content):
+    user = create_user(db)
+    service = PersonalNoteService(db)
 
-        if len(title) > 255:
-            raise PersonalNoteValidationError(
-                "Title cannot exceed 255 characters."
-            )
+    with pytest.raises(PersonalNoteValidationError):
+        service.create(user.id, "Valid title", content)
 
-        return title
 
-    @staticmethod
-    def _validate_content(content: str) -> str:
-        if not isinstance(content, str):
-            raise PersonalNoteValidationError("Content must be a string.")
+def test_get_for_user_returns_owned_note(db: Session):
+    user = create_user(db)
+    service = PersonalNoteService(db)
+    note = service.create(user.id, "My note", "My content")
 
-        content = content.strip()
+    result = service.get_for_user(user.id, note.id)
 
-        if not content:
-            raise PersonalNoteValidationError("Content cannot be empty.")
+    assert result.id == note.id
 
-        return content
 
-    def create(
-        self,
-        user_id: UUID,
-        title: str,
-        content: str,
-    ) -> PersonalNote:
-        normalized_title = self._validate_title(title)
-        normalized_content = self._validate_content(content)
+def test_get_for_user_rejects_another_users_note(db: Session):
+    owner = create_user(db)
+    another_user = create_user(db)
+    service = PersonalNoteService(db)
+    note = service.create(owner.id, "Private", "Private content")
 
-        try:
-            note = self.repository.create(
-                user_id=user_id,
-                title=normalized_title,
-                content=normalized_content,
-            )
-            self.db.commit()
-            self.db.refresh(note)
-            return note
-        except Exception:
-            self.db.rollback()
-            raise
+    with pytest.raises(PersonalNoteNotFoundError):
+        service.get_for_user(another_user.id, note.id)
 
-    def get_for_user(
-        self,
-        user_id: UUID,
-        note_id: UUID,
-    ) -> PersonalNote:
-        note = self.repository.get_by_id_for_user(
-            note_id=note_id,
-            user_id=user_id,
+
+@pytest.mark.parametrize("limit", [0, -1, 101, True, 2.5])
+def test_list_for_user_rejects_invalid_limit(db: Session, limit):
+    user = create_user(db)
+    service = PersonalNoteService(db)
+
+    with pytest.raises(PersonalNoteValidationError):
+        service.list_for_user(user.id, limit=limit)
+
+
+@pytest.mark.parametrize("offset", [-1, True, 1.5])
+def test_list_for_user_rejects_invalid_offset(db: Session, offset):
+    user = create_user(db)
+    service = PersonalNoteService(db)
+
+    with pytest.raises(PersonalNoteValidationError):
+        service.list_for_user(user.id, offset=offset)
+
+
+def test_update_normalizes_and_saves_note(db: Session):
+    user = create_user(db)
+    service = PersonalNoteService(db)
+    note = service.create(user.id, "Old title", "Old content")
+
+    updated = service.update(
+        user.id,
+        note.id,
+        title="  New title ",
+        content=" New content ",
+    )
+
+    assert updated.title == "New title"
+    assert updated.content == "New content"
+
+
+def test_update_rejects_another_users_note(db: Session):
+    owner = create_user(db)
+    another_user = create_user(db)
+    service = PersonalNoteService(db)
+    note = service.create(owner.id, "Private", "Private content")
+
+    with pytest.raises(PersonalNoteNotFoundError):
+        service.update(
+            another_user.id,
+            note.id,
+            title="Changed",
+            content="Changed content",
         )
 
-        if note is None:
-            raise PersonalNoteNotFoundError("Personal note not found.")
 
-        return note
+def test_update_rejects_invalid_data(db: Session):
+    user = create_user(db)
+    service = PersonalNoteService(db)
+    note = service.create(user.id, "Original", "Original content")
 
-    def list_for_user(
-        self,
-        user_id: UUID,
-        *,
-        limit: int = 20,
-        offset: int = 0,
-    ) -> list[PersonalNote]:
-        if isinstance(limit, bool) or not isinstance(limit, int):
-            raise PersonalNoteValidationError(
-                "Limit must be an integer between 1 and 100."
-            )
-
-        if not 1 <= limit <= 100:
-            raise PersonalNoteValidationError(
-                "Limit must be between 1 and 100."
-            )
-
-        if isinstance(offset, bool) or not isinstance(offset, int):
-            raise PersonalNoteValidationError(
-                "Offset must be a non-negative integer."
-            )
-
-        if offset < 0:
-            raise PersonalNoteValidationError(
-                "Offset cannot be negative."
-            )
-
-        return self.repository.list_by_user(
-            user_id=user_id,
-            limit=limit,
-            offset=offset,
+    with pytest.raises(PersonalNoteValidationError):
+        service.update(
+            user.id,
+            note.id,
+            title="   ",
+            content="New content",
         )
 
-    def update(
-        self,
-        user_id: UUID,
-        note_id: UUID,
-        *,
-        title: str,
-        content: str,
-    ) -> PersonalNote:
-        note = self.repository.get_by_id_for_user(
-            note_id=note_id,
-            user_id=user_id,
-        )
+    unchanged = service.get_for_user(user.id, note.id)
+    assert unchanged.title == "Original"
+    assert unchanged.content == "Original content"
 
-        if note is None:
-            raise PersonalNoteNotFoundError("Personal note not found.")
 
-        normalized_title = self._validate_title(title)
-        normalized_content = self._validate_content(content)
+def test_delete_removes_owned_note(db: Session):
+    user = create_user(db)
+    service = PersonalNoteService(db)
+    note = service.create(user.id, "Temporary", "Delete me")
 
-        try:
-            updated_note = self.repository.update(
-                note,
-                title=normalized_title,
-                content=normalized_content,
-            )
-            self.db.commit()
-            self.db.refresh(updated_note)
-            return updated_note
-        except Exception:
-            self.db.rollback()
-            raise
+    service.delete(user.id, note.id)
 
-    def delete(self, user_id: UUID, note_id: UUID) -> None:
-        note = self.repository.get_by_id_for_user(
-            note_id=note_id,
-            user_id=user_id,
-        )
+    with pytest.raises(PersonalNoteNotFoundError):
+        service.get_for_user(user.id, note.id)
 
-        if note is None:
-            raise PersonalNoteNotFoundError("Personal note not found.")
 
-        try:
-            self.repository.delete(note)
-            self.db.commit()
-        except Exception:
-            self.db.rollback()
-            raise
+def test_delete_rejects_another_users_note(db: Session):
+    owner = create_user(db)
+    another_user = create_user(db)
+    service = PersonalNoteService(db)
+    note = service.create(owner.id, "Private", "Private content")
+
+    with pytest.raises(PersonalNoteNotFoundError):
+        service.delete(another_user.id, note.id)
+
+    assert service.get_for_user(owner.id, note.id).id == note.id
