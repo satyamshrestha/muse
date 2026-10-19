@@ -8,7 +8,8 @@ from app.services.routers import (
     personalization_router,
     reminder_router,
     user_interest_router,
-    mood_entry_router
+    mood_entry_router,
+    personal_note_router
 )
 
 api = APIRouter(prefix="/api/v1")
@@ -21,3 +22,4 @@ api.include_router(notification_router.router)
 api.include_router(reminder_router.router)
 api.include_router(user_interest_router.router)
 api.include_router(mood_entry_router.router)
+api.include_router(personal_note_router.router)

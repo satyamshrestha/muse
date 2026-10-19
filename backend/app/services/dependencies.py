@@ -24,6 +24,7 @@ from app.services.notification_service import NotificationService
 from app.services.reminder_service import ReminderService
 from app.services.user_interest_service import UserInterestService
 from app.services.mood_entry_service import MoodEntryService
+from app.services.personal_note_service import PersonalNoteService
 
 
 def get_user_service(
@@ -91,3 +92,6 @@ def get_user_interest_service(db=Depends(get_db)) -> UserInterestService:
 
 def get_mood_entry_service(db=Depends(get_db)) -> MoodEntryService:
     return MoodEntryService(db)
+
+def get_personal_note_service(db=Depends(get_db)) -> PersonalNoteService:
+    return PersonalNoteService(db)
