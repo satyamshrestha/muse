@@ -5,6 +5,7 @@ from app.services.routers import (
     device_router,
     group_router,
     notification_router,
+    notification_preference_router,
     personalization_router,
     reminder_router,
     user_interest_router,
@@ -20,6 +21,7 @@ api.include_router(personalization_router.router)
 api.include_router(group_router.router)
 api.include_router(device_router.router)
 api.include_router(notification_router.router)
+api.include_router(notification_preference_router.router)
 api.include_router(reminder_router.router)
 api.include_router(user_interest_router.router)
 api.include_router(mood_entry_router.router)

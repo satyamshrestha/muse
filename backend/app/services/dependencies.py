@@ -21,6 +21,7 @@ from app.services.group_service import GroupService
 from app.repositories.device_repository import DeviceRepository
 from app.services.device_service import DeviceService
 from app.services.notification_service import NotificationService
+from app.services.notification_preference_service import NotificationPreferenceService
 from app.services.reminder_service import ReminderService
 from app.services.user_interest_service import UserInterestService
 from app.services.mood_entry_service import MoodEntryService
@@ -99,3 +100,9 @@ def get_personal_note_service(db=Depends(get_db)) -> PersonalNoteService:
 
 def get_feature_preference_service(db: Session = Depends(get_db),) -> FeaturePreferenceService:
     return FeaturePreferenceService(db)
+
+def get_notification_preference_service(
+    db: Session = Depends(get_db),
+) -> NotificationPreferenceService:
+    return NotificationPreferenceService(db)
+
