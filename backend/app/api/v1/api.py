@@ -11,7 +11,8 @@ from app.services.routers import (
     user_interest_router,
     mood_entry_router,
     personal_note_router,
-    feature_preference_router
+    feature_preference_router,
+    group_activity_router,
 )
 
 api = APIRouter(prefix="/api/v1")
@@ -27,3 +28,4 @@ api.include_router(user_interest_router.router)
 api.include_router(mood_entry_router.router)
 api.include_router(personal_note_router.router)
 api.include_router(feature_preference_router.router)
+api.include_router(group_activity_router.router)

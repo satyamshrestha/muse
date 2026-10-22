@@ -27,6 +27,7 @@ from app.services.user_interest_service import UserInterestService
 from app.services.mood_entry_service import MoodEntryService
 from app.services.personal_note_service import PersonalNoteService
 from app.services.feature_preference_service import FeaturePreferenceService
+from app.services.group_activity_service import GroupActivityService
 
 
 def get_user_service(
@@ -101,8 +102,8 @@ def get_personal_note_service(db=Depends(get_db)) -> PersonalNoteService:
 def get_feature_preference_service(db: Session = Depends(get_db),) -> FeaturePreferenceService:
     return FeaturePreferenceService(db)
 
-def get_notification_preference_service(
-    db: Session = Depends(get_db),
-) -> NotificationPreferenceService:
+def get_notification_preference_service(db: Session = Depends(get_db)) -> NotificationPreferenceService:
     return NotificationPreferenceService(db)
 
+def get_group_activity_service(db: Session = Depends(get_db)) -> GroupActivityService:
+    return GroupActivityService(db)
