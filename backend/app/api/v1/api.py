@@ -14,6 +14,7 @@ from app.services.routers import (
     feature_preference_router,
     group_activity_router,
     group_activity_response_router,
+    shared_note_router
 )
 
 api = APIRouter(prefix="/api/v1")
@@ -31,3 +32,4 @@ api.include_router(personal_note_router.router)
 api.include_router(feature_preference_router.router)
 api.include_router(group_activity_router.router)
 api.include_router(group_activity_response_router.router)
+api.include_router(shared_note_router.router)
