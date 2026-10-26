@@ -31,6 +31,7 @@ from app.services.group_activity_service import GroupActivityService
 from app.services.group_activity_response_service import GroupActivityResponseService
 from app.services.shared_note_service import SharedNoteService
 from app.services.memory_service import MemoryService
+from app.services.memory_media_service import MemoryMediaService
 
 
 def get_user_service(
@@ -119,3 +120,6 @@ def get_shared_note_service(db: Session = Depends(get_db)) -> SharedNoteService:
 
 def get_memory_service(db: Session = Depends(get_db)) -> MemoryService:
     return MemoryService(db)
+
+def get_memory_media_service(db: Session = Depends(get_db)) -> MemoryMediaService:
+    return MemoryMediaService(db)

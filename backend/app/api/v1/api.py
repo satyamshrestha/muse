@@ -16,6 +16,7 @@ from app.services.routers import (
     group_activity_response_router,
     shared_note_router,
     memory_router,
+    memory_media_router
 )
 
 api = APIRouter(prefix="/api/v1")
@@ -35,3 +36,4 @@ api.include_router(group_activity_router.router)
 api.include_router(group_activity_response_router.router)
 api.include_router(shared_note_router.router)
 api.include_router(memory_router.router)
+api.include_router(memory_media_router.router)
