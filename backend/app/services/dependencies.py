@@ -34,6 +34,7 @@ from app.services.memory_service import MemoryService
 from app.services.memory_media_service import MemoryMediaService
 from app.services.plan_service import PlanService
 from app.services.plan_participant_service import PlanParticipantService
+from app.services.message_reaction_service import MessageReactionService
 
 
 def get_user_service(
@@ -131,3 +132,6 @@ def get_plan_service(db: Session = Depends(get_db)) -> PlanService:
 
 def get_plan_participant_service(db: Session = Depends(get_db)) -> PlanParticipantService:
     return PlanParticipantService(db)
+
+def get_message_reaction_service(db: Session = Depends(get_db)) -> MessageReactionService:
+    return MessageReactionService(db)

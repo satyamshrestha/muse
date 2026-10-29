@@ -19,6 +19,7 @@ from app.services.routers import (
     memory_media_router,
     plan_router,
     plan_participant_router,
+    message_reaction_router
 )
 
 api = APIRouter(prefix="/api/v1")
@@ -41,3 +42,4 @@ api.include_router(memory_router.router)
 api.include_router(memory_media_router.router)
 api.include_router(plan_router.router)
 api.include_router(plan_participant_router.router)
+api.include_router(message_reaction_router.router)
