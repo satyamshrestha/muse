@@ -36,6 +36,7 @@ from app.services.plan_service import PlanService
 from app.services.plan_participant_service import PlanParticipantService
 from app.services.message_reaction_service import MessageReactionService
 from app.services.room_message_service import RoomMessageService
+from app.services.behavioral_signal_service import BehavioralSignalService
 
 def get_user_service(
     db: Session = Depends(get_db),
@@ -138,3 +139,6 @@ def get_message_reaction_service(db: Session = Depends(get_db)) -> MessageReacti
 
 def get_room_message_service(db: Session = Depends(get_db)) -> RoomMessageService:
     return RoomMessageService(db)
+
+def get_behavioral_signal_service(db: Session = Depends(get_db)) -> BehavioralSignalService:
+    return BehavioralSignalService(db)
