@@ -21,7 +21,8 @@ from app.services.routers import (
     plan_participant_router,
     message_reaction_router,
     room_message_router,
-    behavioral_signal_router
+    behavioral_signal_router,
+    daily_drop_router
 )
 
 api = APIRouter(prefix="/api/v1")
@@ -47,3 +48,4 @@ api.include_router(plan_participant_router.router)
 api.include_router(message_reaction_router.router)
 api.include_router(room_message_router.router)
 api.include_router(behavioral_signal_router.router)
+api.include_router(daily_drop_router.router)
