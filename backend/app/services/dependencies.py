@@ -38,6 +38,7 @@ from app.services.message_reaction_service import MessageReactionService
 from app.services.room_message_service import RoomMessageService
 from app.services.behavioral_signal_service import BehavioralSignalService
 from app.services.daily_drop_service import DailyDropService
+from app.services.group_recommendation_service import GroupRecommendationService
 
 def get_user_service(
     db: Session = Depends(get_db),
@@ -146,3 +147,6 @@ def get_behavioral_signal_service(db: Session = Depends(get_db)) -> BehavioralSi
 
 def get_daily_drop_service(db: Session = Depends(get_db)) -> DailyDropService:
     return DailyDropService(db)
+
+def get_group_recommendation_service(db: Session = Depends(get_db)) -> GroupRecommendationService:
+    return GroupRecommendationService(db)

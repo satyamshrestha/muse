@@ -3,15 +3,96 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.group_recommendation import GroupRecommendation
-from app.repositories.group_recommendation_repository import (
-    GroupRecommendationRepository,
-)
+from app.repositories.group_recommendation_repository import GroupRecommendationRepository
+from app.repositories.friend_group_repository import FriendGroupRepository
+from app.repositories.group_membership_repository import GroupMembershipRepository
 
 
 class GroupRecommendationService:
     def __init__(self, db: Session):
         self.db = db
         self.repository = GroupRecommendationRepository(db)
+        self.group_repository = FriendGroupRepository(db)
+        self.membership_repository = GroupMembershipRepository(db)
+
+
+    def _ensure_group_member(self, group_id: UUID, user_id: UUID) -> None:
+        group = self.group_repository.get_by_id(group_id)
+
+        if group is None:
+            raise ValueError("Group not found")
+
+        if not self.membership_repository.is_member(user_id, group_id):
+            raise ValueError("User is not a member of this group")
+
+    def create_recommendation_for_user(
+        self,
+        group_id: UUID,
+        user_id: UUID,
+        recommendation_type: str,
+        title: str,
+        description: str | None = None,
+    ) -> GroupRecommendation:
+        self._ensure_group_member(group_id, user_id)
+
+        return self.create_recommendation(
+            group_id=group_id,
+            created_by=user_id,
+            recommendation_type=recommendation_type,
+            title=title,
+            description=description,
+        )
+
+    def get_group_recommendations_for_user(
+        self,
+        group_id: UUID,
+        user_id: UUID,
+    ) -> list[GroupRecommendation]:
+        self._ensure_group_member(group_id, user_id)
+        return self.get_group_recommendations(group_id)
+
+    def get_recommendations_by_type_for_user(
+        self,
+        group_id: UUID,
+        user_id: UUID,
+        recommendation_type: str,
+    ) -> list[GroupRecommendation]:
+        self._ensure_group_member(group_id, user_id)
+
+        return self.get_recommendations_by_type(
+            group_id,
+            recommendation_type,
+        )
+
+    def get_recommendation_for_user(
+        self,
+        recommendation_id: UUID,
+        user_id: UUID,
+    ) -> GroupRecommendation:
+        recommendation = self.get_recommendation(recommendation_id)
+
+        if recommendation is None:
+            raise ValueError("Group recommendation not found")
+
+        self._ensure_group_member(recommendation.group_id, user_id)
+        return recommendation
+
+    def delete_recommendation_for_user(
+        self,
+        recommendation_id: UUID,
+        user_id: UUID,
+    ) -> bool:
+        recommendation = self.get_recommendation_for_user(
+            recommendation_id,
+            user_id,
+        )
+
+        if recommendation.created_by != user_id:
+            raise ValueError(
+                "Only the recommendation creator can delete it"
+            )
+
+        return self.delete_recommendation(recommendation_id)
 
     def create_recommendation(
         self,
