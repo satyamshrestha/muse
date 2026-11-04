@@ -41,6 +41,7 @@ from app.services.daily_drop_service import DailyDropService
 from app.services.group_recommendation_service import GroupRecommendationService
 from app.repositories.recommendation_repository import RecommendationRepository
 from app.services.recommendation_service import RecommendationService
+from app.services.recommendation_interaction_service import RecommendationInteractionService
 
 def get_user_service(
     db: Session = Depends(get_db),
@@ -155,3 +156,6 @@ def get_group_recommendation_service(db: Session = Depends(get_db)) -> GroupReco
 
 def get_recommendation_service(db: Session = Depends(get_db)) -> RecommendationService:
     return RecommendationService(db)
+
+def get_recommendation_interaction_service(db: Session = Depends(get_db)) -> RecommendationInteractionService:
+    return RecommendationInteractionService(db)

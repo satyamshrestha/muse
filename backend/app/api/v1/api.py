@@ -24,7 +24,8 @@ from app.services.routers import (
     behavioral_signal_router,
     daily_drop_router,
     group_recommendation_router,
-    recommendation_router
+    recommendation_router,
+    recommendation_interaction_router
 )
 
 api = APIRouter(prefix="/api/v1")
@@ -53,3 +54,4 @@ api.include_router(behavioral_signal_router.router)
 api.include_router(daily_drop_router.router)
 api.include_router(group_recommendation_router.router)
 api.include_router(recommendation_router.router)
+api.include_router(recommendation_interaction_router.router)
