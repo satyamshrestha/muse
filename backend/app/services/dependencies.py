@@ -42,6 +42,7 @@ from app.services.group_recommendation_service import GroupRecommendationService
 from app.repositories.recommendation_repository import RecommendationRepository
 from app.services.recommendation_service import RecommendationService
 from app.services.recommendation_interaction_service import RecommendationInteractionService
+from app.services.media_service import MediaService
 
 def get_user_service(
     db: Session = Depends(get_db),
@@ -159,3 +160,6 @@ def get_recommendation_service(db: Session = Depends(get_db)) -> RecommendationS
 
 def get_recommendation_interaction_service(db: Session = Depends(get_db)) -> RecommendationInteractionService:
     return RecommendationInteractionService(db)
+
+def get_media_service(db: Session = Depends(get_db)) -> MediaService:
+    return MediaService(db)
