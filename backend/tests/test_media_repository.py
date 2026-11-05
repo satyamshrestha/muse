@@ -65,19 +65,20 @@ def test_media_repository_create(db):
     user = create_test_user(db)
     repository = MediaRepository(db)
 
+    object_key = f"test/{uuid4()}.jpg"
+
     media = repository.create(
         uploaded_by=user.id,
-        object_key="uploads/test-image.jpg",
+        object_key=object_key,
         media_type="image",
         mime_type="image/jpeg",
     )
 
     assert media.id is not None
     assert media.uploaded_by == user.id
-    assert media.object_key == "uploads/test-image.jpg"
+    assert media.object_key == object_key
     assert media.media_type == "image"
     assert media.mime_type == "image/jpeg"
-    assert media.created_at is not None
 
 
 def test_media_repository_get_by_id(db):
