@@ -241,27 +241,40 @@ def test_delete_media(client):
     assert detail.status_code == 404
 
 
-def test_cannot_delete_media_attached_to_memory(client, db):
-    from app.models.memory_media import MemoryMedia
-
+def test_cannot_delete_media_attached_to_memory(client):
     headers = create_authenticated_user(client)
 
-    created = register_media(client, headers)
-    assert created.status_code == 201, created.text
+    group = client.post(
+        "/api/v1/groups",
+        headers=headers,
+        json={"name": f"Media Crew {uuid4()}"},
+    )
+    assert group.status_code == 201, group.text
 
-    media_id = created.json()["id"]
+    memory = client.post(
+        f"/api/v1/groups/{group.json()['id']}/memories",
+        headers=headers,
+        json={
+            "title": "Media test memory",
+            "description": "Testing media attachment",
+        },
+    )
+    assert memory.status_code == 201, memory.text
 
-    media = db.get(Media, media_id)
-    assert media is not None
+    media = register_media(client, headers)
+    assert media.status_code == 201, media.text
 
-    link = MemoryMedia(
-        memory_id=uuid4(),
-        media_id=media.id,
+    attachment = client.post(
+        f"/api/v1/groups/{group.json()['id']}/memories/"
+        f"{memory.json()['id']}/media",
+        headers=headers,
+        json={"media_id": media.json()["id"]},
+    )
+    assert attachment.status_code == 201, attachment.text
+
+    deleted = client.delete(
+        f"/api/v1/media/{media.json()['id']}",
+        headers=headers,
     )
 
-    db.add(link)
-
-    # This test uses an actual attachment through the existing API below.
-    db.rollback()
-
-    assert media is not None
+    assert deleted.status_code == 409, deleted.text

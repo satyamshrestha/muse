@@ -18,12 +18,15 @@ def _raise_media_error(error: ValueError) -> None:
 
     if "not found" in lowered:
         code = status.HTTP_404_NOT_FOUND
-    elif "limit must" in lowered or "offset cannot" in lowered:
-        code = status.HTTP_422_UNPROCESSABLE_ENTITY
-    elif "cannot be empty" in lowered or "cannot exceed" in lowered:
-        code = status.HTTP_422_UNPROCESSABLE_ENTITY
-    elif "already attached" in lowered:
+    elif "cannot delete media while it is attached" in lowered:
         code = status.HTTP_409_CONFLICT
+    elif (
+        "limit must" in lowered
+        or "offset cannot" in lowered
+        or "cannot be empty" in lowered
+        or "cannot exceed" in lowered
+    ):
+        code = status.HTTP_422_UNPROCESSABLE_ENTITY
     else:
         code = status.HTTP_403_FORBIDDEN
 
