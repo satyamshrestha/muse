@@ -26,7 +26,8 @@ from app.services.routers import (
     group_recommendation_router,
     recommendation_router,
     recommendation_interaction_router,
-    media_router
+    media_router,
+    base_configuration_router
 )
 
 api = APIRouter(prefix="/api/v1")
@@ -57,3 +58,4 @@ api.include_router(group_recommendation_router.router)
 api.include_router(recommendation_router.router)
 api.include_router(recommendation_interaction_router.router)
 api.include_router(media_router.router)
+api.include_router(base_configuration_router.router)

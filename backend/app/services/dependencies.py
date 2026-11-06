@@ -2,6 +2,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.services.base_configuration_service import BaseConfigurationService
 from app.repositories.base_configuration_repository import BaseConfigurationRepository
 from app.repositories.feature_preference_repository import FeaturePreferenceRepository
 from app.repositories.invitation_code_repository import InvitationCodeRepository
@@ -163,3 +164,8 @@ def get_recommendation_interaction_service(db: Session = Depends(get_db)) -> Rec
 
 def get_media_service(db: Session = Depends(get_db)) -> MediaService:
     return MediaService(db)
+
+def get_base_configuration_service(db: Session = Depends(get_db)) -> BaseConfigurationService:
+    repository = BaseConfigurationRepository(db)
+
+    return BaseConfigurationService(repository)
