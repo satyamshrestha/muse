@@ -29,3 +29,14 @@ class BaseConfigurationRepository:
                 BaseConfiguration.id == configuration_id
             )
         )
+
+    def list_all(self) -> list[BaseConfiguration]:
+        statement = (
+            select(BaseConfiguration)
+            .order_by(
+                BaseConfiguration.name.asc(),
+                BaseConfiguration.id.asc(),
+            )
+        )
+
+        return list(self.db.scalars(statement).all())
