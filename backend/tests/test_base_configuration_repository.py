@@ -10,11 +10,23 @@ from app.repositories.base_configuration_repository import (
 
 
 def clear_configurations(db):
+    before = db.query(BaseConfiguration).count()
+    print(f"\nBEFORE CLEANUP: {before}")
+
     db.execute(
         update(User).values(base_configuration_id=None)
     )
-    db.query(BaseConfiguration).delete()
+
+    deleted = db.query(BaseConfiguration).delete(
+        synchronize_session=False
+    )
+
     db.commit()
+
+    after = db.query(BaseConfiguration).count()
+
+    print(f"DELETED: {deleted}")
+    print(f"AFTER CLEANUP: {after}")
 
 
 def create_configuration(
