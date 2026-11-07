@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import Date, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -34,7 +34,7 @@ class DailyDrop(Base):
         nullable=False,
     )
 
-    drop_date: Mapped[datetime] = mapped_column(
+    drop_date: Mapped[date] = mapped_column(
         Date,
         nullable=False,
     )

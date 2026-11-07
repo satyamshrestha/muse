@@ -227,3 +227,33 @@ def test_daily_drop_requires_authentication(client):
     response = client.get("/api/v1/daily-drops")
 
     assert response.status_code == 401
+
+def test_users_can_only_see_their_own_drops(client, db):
+    owner_headers, _ = create_authenticated_user(client, db)
+    another_headers, _ = create_authenticated_user(client, db)
+
+    today = date.today()
+
+    created = create_drop(
+        client,
+        owner_headers,
+        title="Private Drop",
+        drop_date=today.isoformat(),
+    )
+    assert created.status_code == 201, created.text
+
+    listed = client.get(
+        "/api/v1/daily-drops",
+        headers=another_headers,
+    )
+
+    assert listed.status_code == 200
+    assert listed.json() == []
+
+    filtered = client.get(
+        f"/api/v1/daily-drops/date/{today.isoformat()}",
+        headers=another_headers,
+    )
+
+    assert filtered.status_code == 200
+    assert filtered.json() == []
