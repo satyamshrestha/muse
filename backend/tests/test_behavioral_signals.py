@@ -143,3 +143,32 @@ def test_filter_signals_with_no_matches_returns_empty_list(client, db):
 
     assert response.status_code == 200
     assert response.json() == []
+
+def test_users_can_only_see_their_own_signals(client, db):
+    owner_headers, _ = create_authenticated_user(client, db)
+
+    signal = create_signal(
+        client,
+        owner_headers,
+        "mood",
+        "happy",
+    )
+    assert signal.status_code == 201, signal.text
+
+    another_headers, _ = create_authenticated_user(client, db)
+
+    listed = client.get(
+        "/api/v1/behavioral-signals",
+        headers=another_headers,
+    )
+
+    assert listed.status_code == 200
+    assert listed.json() == []
+
+    filtered = client.get(
+        "/api/v1/behavioral-signals/type/mood",
+        headers=another_headers,
+    )
+
+    assert filtered.status_code == 200
+    assert filtered.json() == []
