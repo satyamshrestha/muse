@@ -5,8 +5,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
-    display_name: str
+    password: str = Field(min_length=8)
+    display_name: str = Field(min_length=1, max_length=100)
 
 
 class UserResponse(BaseModel):
