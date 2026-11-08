@@ -155,3 +155,32 @@ def test_update_device_rejects_whitespace_only_platform(client, db):
         assert response.status_code == 422
     finally:
         app.dependency_overrides.pop(get_current_user_id, None)
+
+
+def test_users_can_only_list_their_own_devices(client, db):
+    owner = create_user(db)
+    other_user = create_user(db)
+
+    app.dependency_overrides[get_current_user_id] = lambda: owner.id
+
+    try:
+        created = client.post(
+            "/api/v1/devices",
+            json={
+                "device_token": "private-device-token",
+                "platform": "android",
+            },
+        )
+        assert created.status_code == 201
+
+        app.dependency_overrides[get_current_user_id] = (
+            lambda: other_user.id
+        )
+
+        response = client.get("/api/v1/devices")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    finally:
+        app.dependency_overrides.pop(get_current_user_id, None)
