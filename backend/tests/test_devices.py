@@ -115,3 +115,43 @@ def test_device_lifecycle_api(client, db):
             get_current_user_id,
             None,
         )
+
+
+def test_register_device_rejects_whitespace_only_values(client, db):
+    user = create_user(db)
+    app.dependency_overrides[get_current_user_id] = lambda: user.id
+
+    try:
+        response = client.post(
+            "/api/v1/devices",
+            json={
+                "device_token": "   ",
+                "platform": "android",
+            },
+        )
+        assert response.status_code == 422
+
+        response = client.post(
+            "/api/v1/devices",
+            json={
+                "device_token": "valid-token",
+                "platform": "   ",
+            },
+        )
+        assert response.status_code == 422
+    finally:
+        app.dependency_overrides.pop(get_current_user_id, None)
+
+
+def test_update_device_rejects_whitespace_only_platform(client, db):
+    user = create_user(db)
+    app.dependency_overrides[get_current_user_id] = lambda: user.id
+
+    try:
+        response = client.patch(
+            f"/api/v1/devices/{uuid4()}",
+            json={"platform": "   "},
+        )
+        assert response.status_code == 422
+    finally:
+        app.dependency_overrides.pop(get_current_user_id, None)
