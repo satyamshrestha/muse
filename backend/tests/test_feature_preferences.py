@@ -190,3 +190,14 @@ def test_feature_preferences_are_isolated_between_users(client):
     assert second_get.json()["feature_preferences"] == [
         {"feature": "games", "preference": "low"}
     ]
+
+def test_replace_feature_preferences_requires_field(client):
+    headers = create_authenticated_user(client)
+
+    response = client.put(
+        "/api/v1/feature-preferences",
+        headers=headers,
+        json={},
+    )
+
+    assert response.status_code == 422
