@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class FeaturePreferenceReplace(BaseModel):
-    feature_preferences: dict[str, str] = Field(default_factory=dict)
+    feature_preferences: dict[str, str]
 
 
 class FeaturePreferenceItem(BaseModel):
