@@ -669,3 +669,17 @@ def test_leaving_group_requires_authentication(client):
         f"/api/v1/groups/{uuid4()}/leave"
     )
     assert response.status_code == 401
+
+def test_users_can_only_list_their_own_groups(client):
+    owner_headers = create_authenticated_user(client)
+    other_headers = create_authenticated_user(client)
+
+    create_group(client, owner_headers, "Private Group")
+
+    response = client.get(
+        "/api/v1/groups",
+        headers=other_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
