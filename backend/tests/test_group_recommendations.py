@@ -334,3 +334,24 @@ def test_group_recommendations_require_authentication(client):
     )
 
     assert response.status_code == 401
+
+
+def test_another_member_cannot_delete_recommendation(client, db):
+    owner_headers, _ = create_authenticated_user(client, db)
+    another_headers, _ = create_authenticated_user(client, db)
+
+    group = create_group(client, owner_headers)
+    group_id = group.json()["id"]
+
+    invitation = client.post(
+        f"/api/v1/groups/{group_id}/invitations",
+        headers=owner_headers,
+    )
+    assert invitation.status_code == 201
+
+    joined = client.post(
+        "/api/v1/groups/join",
+        headers=another_headers,
+        json={"token": invitation.json()["token"]},
+    )
+    assert joined.status_code == 200
