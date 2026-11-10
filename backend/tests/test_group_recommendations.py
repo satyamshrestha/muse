@@ -361,3 +361,10 @@ def test_another_member_cannot_delete_recommendation(client, db):
 
     recommendation_id = created.json()["id"]
     assert created.json()["created_by"] == str(owner.id)
+
+    response = client.delete(
+        f"/api/v1/groups/{group_id}/recommendations/{recommendation_id}",
+        headers=another_headers,
+    )
+
+    assert response.status_code == 403
