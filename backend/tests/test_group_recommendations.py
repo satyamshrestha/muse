@@ -337,7 +337,7 @@ def test_group_recommendations_require_authentication(client):
 
 
 def test_another_member_cannot_delete_recommendation(client, db):
-    owner_headers, _ = create_authenticated_user(client, db)
+    owner_headers, owner = create_authenticated_user(client, db)
     another_headers, _ = create_authenticated_user(client, db)
 
     group = create_group(client, owner_headers)
@@ -355,3 +355,9 @@ def test_another_member_cannot_delete_recommendation(client, db):
         json={"token": invitation.json()["token"]},
     )
     assert joined.status_code == 200
+
+    created = create_recommendation(client, owner_headers, group_id)
+    assert created.status_code == 201
+
+    recommendation_id = created.json()["id"]
+    assert created.json()["created_by"] == str(owner.id)
