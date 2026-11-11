@@ -281,3 +281,56 @@ def test_memory_date_can_be_omitted(client):
     assert created.status_code == 201, created.text
     assert created.json()["description"] is None
     assert created.json()["memory_date"] is None
+
+def test_create_memory_strips_title_whitespace(client):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+
+    result = create_memory(
+        client, headers, group["id"], title="  Summer trip  "
+    )
+
+    assert result.status_code == 201, result.text
+    assert result.json()["title"] == "Summer trip"
+
+
+def test_create_memory_rejects_whitespace_only_title(client):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+
+    result = create_memory(
+        client, headers, group["id"], title="   "
+    )
+
+    assert result.status_code == 422
+
+
+def test_update_memory_strips_title_whitespace(client):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+    created = create_memory(client, headers, group["id"])
+    assert created.status_code == 201
+
+    result = client.put(
+        f"/api/v1/groups/{group['id']}/memories/{created.json()['id']}",
+        headers=headers,
+        json={"title": "  Updated trip  ", "description": "Updated."},
+    )
+
+    assert result.status_code == 200, result.text
+    assert result.json()["title"] == "Updated trip"
+
+
+def test_update_memory_rejects_whitespace_only_title(client):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+    created = create_memory(client, headers, group["id"])
+    assert created.status_code == 201
+
+    result = client.put(
+        f"/api/v1/groups/{group['id']}/memories/{created.json()['id']}",
+        headers=headers,
+        json={"title": "   ", "description": "Updated."},
+    )
+
+    assert result.status_code == 422
