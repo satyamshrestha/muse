@@ -30,6 +30,17 @@ class MemoryService:
         if not self.membership_repository.is_member(user_id, group_id):
             raise ValueError("User is not a member of this group")
 
+    def _validate_title(self, title: str) -> str:
+        title = title.strip()
+
+        if not title:
+            raise ValueError("Memory title cannot be empty")
+
+        if len(title) > 255:
+            raise ValueError("Memory title cannot exceed 255 characters")
+
+        return title
+
     def create_memory(
         self,
         group_id: UUID,
@@ -39,6 +50,7 @@ class MemoryService:
         memory_date=None,
     ) -> Memory:
         self._ensure_group_member(group_id, user_id)
+        title = self._validate_title(title)
 
         memory = self.memory_repository.create(
             group_id=group_id,
@@ -101,6 +113,7 @@ class MemoryService:
         memory_date=None,
     ) -> Memory:
         self._ensure_group_member(group_id, user_id)
+        title = self._validate_title(title)
 
         memory = self.memory_repository.get_by_id_for_group(
             memory_id=memory_id,

@@ -235,3 +235,56 @@ def test_delete_memory_rejects_missing_memory(db: Session):
 
     with pytest.raises(ValueError, match="Memory not found"):
         MemoryService(db).delete_memory(group.id, uuid4(), user.id)
+
+def test_create_memory_strips_title_whitespace(db: Session):
+    user = create_user(db)
+    group = create_group(db, user)
+    service = MemoryService(db)
+
+    memory = service.create_memory(
+        group.id, user.id, "  Summer trip  "
+    )
+
+    assert memory.title == "Summer trip"
+
+
+def test_create_memory_rejects_whitespace_only_title(db: Session):
+    user = create_user(db)
+    group = create_group(db, user)
+    service = MemoryService(db)
+
+    with pytest.raises(ValueError, match="Memory title cannot be empty"):
+        service.create_memory(group.id, user.id, "   ")
+
+
+def test_update_memory_strips_title_whitespace(db: Session):
+    user = create_user(db)
+    group = create_group(db, user)
+    service = MemoryService(db)
+    memory = service.create_memory(group.id, user.id, "Old title")
+
+    updated = service.update_memory(
+        group.id,
+        memory.id,
+        user.id,
+        title="  Updated trip  ",
+        description=None,
+    )
+
+    assert updated.title == "Updated trip"
+
+
+def test_update_memory_rejects_whitespace_only_title(db: Session):
+    user = create_user(db)
+    group = create_group(db, user)
+    service = MemoryService(db)
+    memory = service.create_memory(group.id, user.id, "Old title")
+
+    with pytest.raises(ValueError, match="Memory title cannot be empty"):
+        service.update_memory(
+            group.id,
+            memory.id,
+            user.id,
+            title="   ",
+            description=None,
+        )
