@@ -1,4 +1,6 @@
 from uuid import uuid4
+from sqlalchemy.exc import IntegrityError
+from unittest.mock import Mock
 
 import pytest
 
@@ -287,3 +289,91 @@ def test_detach_media_rejects_missing_link(db):
         service.detach_media(
             group.id, memory.id, uuid4(), user.id
         )
+
+
+def test_attach_media_handles_concurrent_duplicate_conflict(
+    db,
+    monkeypatch,
+):
+    user = create_test_user(db)
+    group = create_test_group(db, user)
+    memory = create_test_memory(db, group, user)
+    media = create_test_media(db, user)
+
+    service = MemoryMediaService(db)
+
+    existing_link = MemoryMedia(
+        memory_id=memory.id,
+        media_id=media.id,
+    )
+
+    monkeypatch.setattr(
+        service.memory_media_repository,
+        "get_by_memory_and_media",
+        Mock(side_effect=[None, existing_link]),
+    )
+
+    monkeypatch.setattr(
+        service.memory_media_repository,
+        "create",
+        Mock(
+            side_effect=IntegrityError(
+                "INSERT",
+                {},
+                Exception("unique constraint violation"),
+            )
+        ),
+    )
+
+    rollback = Mock(wraps=db.rollback)
+    monkeypatch.setattr(db, "rollback", rollback)
+
+    with pytest.raises(
+        ValueError,
+        match="Media is already attached to this memory",
+    ):
+        service.attach_media(
+            group.id,
+            memory.id,
+            media.id,
+            user.id,
+        )
+
+    rollback.assert_called_once()
+
+
+def test_attach_media_reraises_unrelated_integrity_error(
+    db,
+    monkeypatch,
+):
+    user = create_test_user(db)
+    group = create_test_group(db, user)
+    memory = create_test_memory(db, group, user)
+    media = create_test_media(db, user)
+
+    service = MemoryMediaService(db)
+
+    monkeypatch.setattr(
+        service.memory_media_repository,
+        "create",
+        Mock(
+            side_effect=IntegrityError(
+                "INSERT",
+                {},
+                Exception("foreign key constraint violation"),
+            )
+        ),
+    )
+
+    rollback = Mock(wraps=db.rollback)
+    monkeypatch.setattr(db, "rollback", rollback)
+
+    with pytest.raises(IntegrityError):
+        service.attach_media(
+            group.id,
+            memory.id,
+            media.id,
+            user.id,
+        )
+
+    rollback.assert_called_once()
