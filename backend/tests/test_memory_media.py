@@ -1,5 +1,8 @@
 from uuid import uuid4
+from sqlalchemy.exc import IntegrityError
 
+from app.models.memory_media import MemoryMedia
+from app.repositories.memory_media_repository import MemoryMediaRepository
 from app.models.media import Media
 from app.models.user import User
 
@@ -278,3 +281,65 @@ def test_list_memory_media_rejects_invalid_pagination(client, db):
     )
 
     assert result.status_code == 422
+
+
+def test_concurrent_duplicate_attachment_returns_conflict(
+    client,
+    db,
+    monkeypatch,
+):
+    headers, user = create_authenticated_user(client, db)
+    group = create_group(client, headers)
+    memory = create_memory(client, headers, group["id"])
+    media = create_media(db, user)
+
+    existing_link = MemoryMedia(
+        memory_id=memory["id"],
+        media_id=media.id,
+    )
+    db.add(existing_link)
+    db.commit()
+
+    original_get = MemoryMediaRepository.get_by_memory_and_media
+    lookup_count = 0
+
+    def simulate_race(self, memory_id, media_id):
+        nonlocal lookup_count
+        lookup_count += 1
+
+        if lookup_count == 1:
+            return None
+
+        return original_get(self, memory_id, media_id)
+
+    def raise_integrity_error(self, memory_id, media_id):
+        raise IntegrityError(
+            "INSERT",
+            {},
+            Exception("unique constraint violation"),
+        )
+
+    monkeypatch.setattr(
+        MemoryMediaRepository,
+        "get_by_memory_and_media",
+        simulate_race,
+    )
+    monkeypatch.setattr(
+        MemoryMediaRepository,
+        "create",
+        raise_integrity_error,
+    )
+
+    response = client.post(
+        f"/api/v1/groups/{group['id']}/memories/"
+        f"{memory['id']}/media",
+        json={"media_id": str(media.id)},
+        headers=headers,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Media is already attached to this memory"
+    )
+    assert "IntegrityError" not in response.text
+    assert lookup_count == 2
