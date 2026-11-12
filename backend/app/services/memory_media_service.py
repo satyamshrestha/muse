@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.media import Media
@@ -76,11 +77,30 @@ class MemoryMediaService:
         if existing_link is not None:
             raise ValueError("Media is already attached to this memory")
 
-        link = self.memory_media_repository.create(
-            memory_id=memory_id,
-            media_id=media_id,
-        )
-        self.db.commit()
+        try:
+            link = self.memory_media_repository.create(
+                memory_id=memory_id,
+                media_id=media_id,
+            )
+            self.db.commit()
+
+        except IntegrityError as error:
+            self.db.rollback()
+
+            existing_link = (
+                self.memory_media_repository.get_by_memory_and_media(
+                    memory_id=memory_id,
+                    media_id=media_id,
+                )
+            )
+
+            if existing_link is not None:
+                raise ValueError(
+                    "Media is already attached to this memory"
+                ) from error
+
+            raise
+
         self.db.refresh(link)
         return link
 
