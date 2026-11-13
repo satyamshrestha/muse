@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.models.message_reaction import MessageReaction
 from app.models.room_message import RoomMessage
@@ -40,6 +41,7 @@ class MessageReactionService:
         ):
             raise ValueError("User is not a member of this group")
 
+
     def create_reaction(
         self,
         message_id: UUID,
@@ -60,14 +62,32 @@ class MessageReactionService:
         if existing is not None:
             raise ValueError("User has already reacted to this message")
 
-        message_reaction = self.reaction_repository.create(
-            message_id=message_id,
-            user_id=user_id,
-            reaction=reaction,
-        )
-        self.db.commit()
+        try:
+            message_reaction = self.reaction_repository.create(
+                message_id=message_id,
+                user_id=user_id,
+                reaction=reaction,
+            )
+            self.db.commit()
+
+        except IntegrityError as error:
+            self.db.rollback()
+
+            existing = self.reaction_repository.get_for_user_and_message(
+                user_id=user_id,
+                message_id=message_id,
+            )
+
+            if existing is not None:
+                raise ValueError(
+                    "User has already reacted to this message"
+                ) from error
+
+            raise
+
         self.db.refresh(message_reaction)
         return message_reaction
+
 
     def get_message_reactions(
         self,
