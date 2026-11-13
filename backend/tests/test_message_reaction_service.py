@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.models.friend_group import FriendGroup
 from app.models.group_membership import GroupMembership
@@ -216,3 +217,90 @@ def test_delete_reaction_rejects_another_users_reaction(db):
 
     with pytest.raises(ValueError, match="Only the reaction creator"):
         service.delete_reaction(created.id, other_user.id)
+
+
+
+def test_create_reaction_handles_concurrent_duplicate(
+    db,
+    monkeypatch,
+):
+    user = create_test_user(db)
+    _, message = create_test_message(db, user)
+    service = MessageReactionService(db)
+
+    existing_reaction = MessageReaction(
+        message_id=message.id,
+        user_id=user.id,
+        reaction="🔥",
+    )
+
+    lookup_results = iter([None, existing_reaction])
+
+    def simulate_reaction_lookup(user_id, message_id):
+        return next(lookup_results)
+
+    def raise_integrity_error(message_id, user_id, reaction):
+        raise IntegrityError(
+            "INSERT",
+            {},
+            Exception("unique constraint violation"),
+        )
+
+    monkeypatch.setattr(
+        service.reaction_repository,
+        "get_for_user_and_message",
+        simulate_reaction_lookup,
+    )
+    monkeypatch.setattr(
+        service.reaction_repository,
+        "create",
+        raise_integrity_error,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="User has already reacted to this message",
+    ):
+        service.create_reaction(
+            message_id=message.id,
+            user_id=user.id,
+            reaction="😂",
+        )
+
+    assert db.is_active
+
+
+def test_create_reaction_reraises_unrelated_integrity_error(
+    db,
+    monkeypatch,
+):
+    user = create_test_user(db)
+    _, message = create_test_message(db, user)
+    service = MessageReactionService(db)
+
+    def raise_integrity_error(message_id, user_id, reaction):
+        raise IntegrityError(
+            "INSERT",
+            {},
+            Exception("unrelated constraint violation"),
+        )
+
+    monkeypatch.setattr(
+        service.reaction_repository,
+        "create",
+        raise_integrity_error,
+    )
+
+    with pytest.raises(IntegrityError):
+        service.create_reaction(
+            message_id=message.id,
+            user_id=user.id,
+            reaction="🔥",
+        )
+
+    assert db.is_active
+
+    assert service.reaction_repository.get_for_user_and_message(
+        user_id=user.id,
+        message_id=message.id,
+    ) is None
