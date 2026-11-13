@@ -1,5 +1,10 @@
 from uuid import uuid4
+from sqlalchemy.exc import IntegrityError
 
+from app.models.message_reaction import MessageReaction
+from app.repositories.message_reaction_repository import (
+    MessageReactionRepository,
+)
 from app.models.room_message import RoomMessage
 from app.models.user import User
 
@@ -180,3 +185,71 @@ def test_wrong_group_message_path_returns_not_found(client, db):
     )
 
     assert response.status_code == 404
+
+
+def test_concurrent_duplicate_reaction_returns_conflict(
+    client,
+    db,
+    monkeypatch,
+):
+    headers, user = create_authenticated_user(client, db)
+    group = create_group(client, headers)
+    message = create_message(db, group["id"], user.id)
+
+    existing_reaction = MessageReaction(
+        message_id=message.id,
+        user_id=user.id,
+        reaction="🔥",
+    )
+    db.add(existing_reaction)
+    db.commit()
+
+    original_lookup = (
+        MessageReactionRepository.get_for_user_and_message
+    )
+    lookup_count = 0
+
+    def simulate_race(self, user_id, message_id):
+        nonlocal lookup_count
+        lookup_count += 1
+
+        if lookup_count == 1:
+            return None
+
+        return original_lookup(self, user_id, message_id)
+
+    def raise_integrity_error(
+        self,
+        message_id,
+        user_id,
+        reaction,
+    ):
+        raise IntegrityError(
+            "INSERT",
+            {},
+            Exception("unique constraint violation"),
+        )
+
+    monkeypatch.setattr(
+        MessageReactionRepository,
+        "get_for_user_and_message",
+        simulate_race,
+    )
+    monkeypatch.setattr(
+        MessageReactionRepository,
+        "create",
+        raise_integrity_error,
+    )
+
+    response = client.post(
+        f"/api/v1/groups/{group['id']}/messages/"
+        f"{message.id}/reactions",
+        headers=headers,
+        json={"reaction": "😂"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "User has already reacted to this message"
+    )
+    assert lookup_count == 2
