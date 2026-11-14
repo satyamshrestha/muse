@@ -1,7 +1,9 @@
+from datetime import datetime as RealDateTime, timezone
 from uuid import uuid4
 
 import pytest
 
+import app.services.notification_service as notification_service_module
 from app.models.notification import Notification
 from app.models.notification_preference import NotificationPreference
 from app.models.user import User
@@ -181,6 +183,52 @@ def test_quiet_hours_boundaries(
 
     assert (
         NotificationService.is_within_quiet_hours(preference, hour)
+        is expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("utc_hour", "expected"),
+    [
+        (14, True),
+        (2, False),
+    ],
+)
+def test_quiet_hours_use_user_timezone(
+    monkeypatch,
+    utc_hour,
+    expected,
+):
+    class FrozenDateTime:
+        @staticmethod
+        def now(tz=None):
+            fixed_utc = RealDateTime(
+                2026,
+                1,
+                1,
+                utc_hour,
+                tzinfo=timezone.utc,
+            )
+            return fixed_utc.astimezone(tz) if tz else fixed_utc
+
+    monkeypatch.setattr(
+        notification_service_module,
+        "datetime",
+        FrozenDateTime,
+    )
+
+    preference = NotificationPreference(
+        user_id=uuid4(),
+        enabled=True,
+        daily_drop_enabled=True,
+        group_activity_enabled=True,
+        quiet_hours_start=22,
+        quiet_hours_end=7,
+        timezone_name="Asia/Seoul",
+    )
+
+    assert (
+        NotificationService.is_within_quiet_hours(preference)
         is expected
     )
 

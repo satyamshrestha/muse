@@ -46,6 +46,7 @@ def test_update_for_user_creates_preferences(db):
     assert result.group_activity_enabled is False
     assert result.quiet_hours_start == 22
     assert result.quiet_hours_end == 7
+    assert result.timezone_name == "UTC"
     assert result.id is not None
 
 
@@ -84,6 +85,61 @@ def test_update_for_user_updates_existing_preferences(db):
         .all()
     )
     assert len(preferences) == 1
+
+
+def test_update_for_user_saves_valid_timezone(db):
+    user = create_user(db)
+    service = NotificationPreferenceService(db)
+
+    result = service.update_for_user(
+        user_id=user.id,
+        enabled=True,
+        daily_drop_enabled=True,
+        group_activity_enabled=True,
+        timezone_name="Asia/Seoul",
+    )
+
+    assert result.timezone_name == "Asia/Seoul"
+
+
+def test_update_for_user_updates_timezone(db):
+    user = create_user(db)
+    service = NotificationPreferenceService(db)
+
+    original = service.update_for_user(
+        user_id=user.id,
+        enabled=True,
+        daily_drop_enabled=True,
+        group_activity_enabled=True,
+        timezone_name="UTC",
+    )
+
+    updated = service.update_for_user(
+        user_id=user.id,
+        enabled=True,
+        daily_drop_enabled=True,
+        group_activity_enabled=True,
+        timezone_name="Asia/Seoul",
+    )
+
+    assert updated.id == original.id
+    assert updated.timezone_name == "Asia/Seoul"
+
+
+def test_update_for_user_rejects_invalid_timezone(db):
+    user = create_user(db)
+    service = NotificationPreferenceService(db)
+
+    with pytest.raises(NotificationPreferenceError):
+        service.update_for_user(
+            user_id=user.id,
+            enabled=True,
+            daily_drop_enabled=True,
+            group_activity_enabled=True,
+            timezone_name="Not/A_Real_Zone",
+        )
+
+    assert service.get_for_user(user.id) is None
 
 
 @pytest.mark.parametrize(

@@ -46,6 +46,7 @@ def test_notification_preference_api_lifecycle(client, db):
             "group_activity_enabled": False,
             "quiet_hours_start": 22,
             "quiet_hours_end": 7,
+            "timezone_name": "Asia/Seoul",
         }
         response = client.put(
             "/api/v1/notification-preferences",
@@ -59,10 +60,12 @@ def test_notification_preference_api_lifecycle(client, db):
         assert saved["group_activity_enabled"] is False
         assert saved["quiet_hours_start"] == 22
         assert saved["quiet_hours_end"] == 7
+        assert saved["timezone_name"] == "Asia/Seoul"
 
         response = client.get("/api/v1/notification-preferences")
         assert response.status_code == 200
         assert response.json()["id"] == saved["id"]
+        assert response.json()["timezone_name"] == "Asia/Seoul"
 
         updated_payload = {
             "enabled": True,
@@ -70,6 +73,7 @@ def test_notification_preference_api_lifecycle(client, db):
             "group_activity_enabled": True,
             "quiet_hours_start": None,
             "quiet_hours_end": None,
+            "timezone_name": "UTC",
         }
         response = client.put(
             "/api/v1/notification-preferences",
@@ -82,6 +86,7 @@ def test_notification_preference_api_lifecycle(client, db):
         assert updated["daily_drop_enabled"] is False
         assert updated["quiet_hours_start"] is None
         assert updated["quiet_hours_end"] is None
+        assert updated["timezone_name"] == "UTC"
 
         assert (
             db.query(NotificationPreference)
@@ -114,6 +119,7 @@ def test_notification_preference_api_rejects_invalid_quiet_hours(
             "group_activity_enabled": True,
             "quiet_hours_start": 22,
             "quiet_hours_end": 7,
+            "timezone_name": "Asia/Seoul",
         }
         response = client.put(
             "/api/v1/notification-preferences",
@@ -134,6 +140,7 @@ def test_notification_preference_api_rejects_invalid_quiet_hours(
                 "enabled": False,
                 "daily_drop_enabled": False,
                 "group_activity_enabled": False,
+                "timezone_name": "UTC",
                 **invalid_hours,
             }
             response = client.put(
@@ -146,6 +153,40 @@ def test_notification_preference_api_rejects_invalid_quiet_hours(
         assert response.status_code == 200
         assert response.json()["id"] == original_id
         assert response.json()["enabled"] is True
+        assert response.json()["timezone_name"] == "Asia/Seoul"
+
+    finally:
+        app.dependency_overrides.pop(get_current_user_id, None)
+
+
+def test_notification_preference_api_rejects_invalid_timezone(
+    client, db
+):
+    user = create_user(db)
+    app.dependency_overrides[get_current_user_id] = lambda: user.id
+
+    try:
+        payload = {
+            "enabled": True,
+            "daily_drop_enabled": True,
+            "group_activity_enabled": True,
+            "timezone_name": "Not/A_Real_Zone",
+        }
+
+        response = client.put(
+            "/api/v1/notification-preferences",
+            json=payload,
+        )
+
+        assert response.status_code == 422
+        assert "Invalid timezone" in response.json()["detail"]
+
+        assert (
+            db.query(NotificationPreference)
+            .filter(NotificationPreference.user_id == user.id)
+            .count()
+            == 0
+        )
 
     finally:
         app.dependency_overrides.pop(get_current_user_id, None)
