@@ -28,6 +28,7 @@ class NotificationPreferenceRepository:
         group_activity_enabled: bool,
         quiet_hours_start: int | None = None,
         quiet_hours_end: int | None = None,
+        timezone_name: str = "UTC",
     ) -> NotificationPreference:
         notification_preference = self.get_by_user_id(user_id)
 
@@ -39,6 +40,7 @@ class NotificationPreferenceRepository:
                 group_activity_enabled=group_activity_enabled,
                 quiet_hours_start=quiet_hours_start,
                 quiet_hours_end=quiet_hours_end,
+                timezone_name=timezone_name,
             )
 
             self.db.add(notification_preference)
@@ -56,6 +58,7 @@ class NotificationPreferenceRepository:
             notification_preference.quiet_hours_end = (
                 quiet_hours_end
             )
+            notification_preference.timezone_name = timezone_name
 
         self.db.flush()
 

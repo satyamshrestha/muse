@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from app.models.notification import Notification
 from app.models.notification_preference import NotificationPreference
@@ -159,10 +160,11 @@ class NotificationService:
             return False
 
         hour = (
-            datetime.now(timezone.utc).hour
+            datetime.now(ZoneInfo(preference.timezone_name)).hour
             if current_hour is None
             else current_hour
         )
+
         if not 0 <= hour <= 23:
             raise NotificationPreferenceError(
                 "Current hour must be between 0 and 23."

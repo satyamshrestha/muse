@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -51,6 +51,12 @@ class NotificationPreference(Base):
     quiet_hours_end: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
+    )
+    
+    timezone_name: Mapped[str] = mapped_column(
+        String(64),
+        default="UTC",
+        nullable=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(

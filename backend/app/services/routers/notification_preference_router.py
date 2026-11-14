@@ -51,6 +51,7 @@ def update_notification_preferences(
             group_activity_enabled=payload.group_activity_enabled,
             quiet_hours_start=payload.quiet_hours_start,
             quiet_hours_end=payload.quiet_hours_end,
+            timezone_name=payload.timezone_name,
         )
     except NotificationPreferenceError as exc:
         raise HTTPException(

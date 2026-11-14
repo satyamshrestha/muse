@@ -10,6 +10,7 @@ class NotificationPreferenceUpdate(BaseModel):
     group_activity_enabled: bool = True
     quiet_hours_start: int | None = None
     quiet_hours_end: int | None = None
+    timezone_name: str = "UTC"
 
 
 class NotificationPreferenceResponse(BaseModel):
@@ -22,5 +23,6 @@ class NotificationPreferenceResponse(BaseModel):
     group_activity_enabled: bool
     quiet_hours_start: int | None
     quiet_hours_end: int | None
+    timezone_name: str
     created_at: datetime
     updated_at: datetime

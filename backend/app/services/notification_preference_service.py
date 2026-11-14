@@ -1,4 +1,5 @@
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.orm import Session
 
@@ -31,11 +32,13 @@ class NotificationPreferenceService:
         group_activity_enabled: bool,
         quiet_hours_start: int | None = None,
         quiet_hours_end: int | None = None,
+        timezone_name: str = "UTC",
     ) -> NotificationPreference:
         NotificationService.validate_quiet_hours(
             quiet_hours_start,
             quiet_hours_end,
         )
+        self.validate_timezone(timezone_name)
 
         try:
             preference = self.repository.upsert(
@@ -45,6 +48,7 @@ class NotificationPreferenceService:
                 group_activity_enabled=group_activity_enabled,
                 quiet_hours_start=quiet_hours_start,
                 quiet_hours_end=quiet_hours_end,
+                timezone_name=timezone_name,
             )
             self.db.commit()
             self.db.refresh(preference)
@@ -52,3 +56,12 @@ class NotificationPreferenceService:
         except Exception:
             self.db.rollback()
             raise
+
+    @staticmethod
+    def validate_timezone(timezone_name: str) -> None:
+        try:
+            ZoneInfo(timezone_name)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise NotificationPreferenceError(
+                "Invalid timezone. Use a valid IANA timezone name."
+            ) from None
