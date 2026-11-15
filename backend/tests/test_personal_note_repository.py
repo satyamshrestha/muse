@@ -1,4 +1,5 @@
-from uuid import uuid4
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
 
@@ -114,6 +115,50 @@ def test_list_by_user_supports_pagination(db: Session):
     assert {note.id for note in first_page}.isdisjoint(
         {note.id for note in second_page}
     )
+
+
+def test_list_by_user_orders_by_created_at_and_id_desc(db: Session):
+    user = create_user(db)
+    repository = PersonalNoteRepository(db)
+
+    timestamp = datetime(2026, 1, 2, tzinfo=timezone.utc)
+    older_timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    older_note = PersonalNote(
+        id=UUID(int=3),
+        user_id=user.id,
+        title="Older",
+        content="Older content",
+        created_at=older_timestamp,
+        updated_at=older_timestamp,
+    )
+    first_tied_note = PersonalNote(
+        id=UUID(int=1),
+        user_id=user.id,
+        title="First tied note",
+        content="First content",
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
+    second_tied_note = PersonalNote(
+        id=UUID(int=2),
+        user_id=user.id,
+        title="Second tied note",
+        content="Second content",
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
+
+    db.add_all([older_note, first_tied_note, second_tied_note])
+    db.commit()
+
+    notes = repository.list_by_user(user.id)
+
+    assert [note.id for note in notes] == [
+        UUID(int=2),
+        UUID(int=1),
+        UUID(int=3),
+    ]
 
 
 def test_update_personal_note(db: Session):
