@@ -1,8 +1,10 @@
-from uuid import uuid4
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
 
 from app.auth.jwt import get_current_user_id
+from app.models.personal_note import PersonalNote
 from app.models.user import User
 from app.services.dependencies import get_personal_note_service
 from app.services.personal_note_service import PersonalNoteService
@@ -71,6 +73,59 @@ def test_list_personal_notes_only_returns_current_users_notes(client, db: Sessio
         assert len(data) == 1
         assert data[0]["user_id"] == str(user.id)
         assert data[0]["title"] == "Mine"
+    finally:
+        clear_note_overrides(client)
+
+
+def test_list_personal_notes_orders_by_created_at_and_id_desc(client, db: Session):
+    user = create_user(db)
+
+    timestamp = datetime(2026, 1, 2, tzinfo=timezone.utc)
+    older_timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    older_id = uuid4()
+    first_tied_id = uuid4()
+    second_tied_id = uuid4()
+
+    older_note = PersonalNote(
+        id=older_id,
+        user_id=user.id,
+        title="Older",
+        content="Older content",
+        created_at=older_timestamp,
+        updated_at=older_timestamp,
+    )
+    first_tied_note = PersonalNote(
+        id=first_tied_id,
+        user_id=user.id,
+        title="First tied note",
+        content="First content",
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
+    second_tied_note = PersonalNote(
+        id=second_tied_id,
+        user_id=user.id,
+        title="Second tied note",
+        content="Second content",
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
+
+    db.add_all([older_note, first_tied_note, second_tied_note])
+    db.commit()
+
+    set_note_overrides(client, db, user)
+
+    try:
+        response = client.get("/api/v1/notes")
+
+        assert response.status_code == 200
+        assert [item["id"] for item in response.json()] == [
+            str(max(first_tied_id, second_tied_id)),
+            str(min(first_tied_id, second_tied_id)),
+            str(older_id),
+        ]
     finally:
         clear_note_overrides(client)
 
@@ -161,6 +216,32 @@ def test_update_personal_note(client, db: Session):
         assert response.status_code == 200
         assert response.json()["title"] == "Updated title"
         assert response.json()["content"] == "Updated content"
+    finally:
+        clear_note_overrides(client)
+
+
+def test_update_personal_note_refreshes_updated_at(client, db: Session):
+    user = create_user(db)
+    note = PersonalNoteService(db).create(user.id, "Old title", "Old content")
+
+    old_timestamp = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    note.updated_at = old_timestamp
+    db.commit()
+    db.refresh(note)
+
+    set_note_overrides(client, db, user)
+
+    try:
+        response = client.put(
+            f"/api/v1/notes/{note.id}",
+            json={"title": "Updated title", "content": "Updated content"},
+        )
+
+        assert response.status_code == 200
+        updated_timestamp = datetime.fromisoformat(
+            response.json()["updated_at"].replace("Z", "+00:00")
+        )
+        assert updated_timestamp > old_timestamp
     finally:
         clear_note_overrides(client)
 
