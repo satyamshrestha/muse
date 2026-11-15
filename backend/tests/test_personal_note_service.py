@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -107,6 +108,26 @@ def test_update_normalizes_and_saves_note(db: Session):
 
     assert updated.title == "New title"
     assert updated.content == "New content"
+
+
+def test_update_refreshes_updated_at(db: Session):
+    user = create_user(db)
+    service = PersonalNoteService(db)
+    note = service.create(user.id, "Old title", "Old content")
+
+    old_timestamp = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    note.updated_at = old_timestamp
+    db.commit()
+    db.refresh(note)
+
+    updated = service.update(
+        user.id,
+        note.id,
+        title="New title",
+        content="New content",
+    )
+
+    assert updated.updated_at > old_timestamp
 
 
 def test_update_rejects_another_users_note(db: Session):
