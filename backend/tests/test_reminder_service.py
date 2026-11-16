@@ -96,6 +96,48 @@ def test_list_for_user_filters_and_validates_pagination(db):
         service.list_for_user(user.id, offset=-1)
 
 
+@pytest.mark.parametrize("limit", [True, False, 1.5, "10"])
+def test_list_rejects_non_integer_limit(db, limit):
+    user = create_user(db)
+    service = ReminderService(db)
+
+    with pytest.raises(ReminderValidationError):
+        service.list_for_user(user.id, limit=limit)
+
+
+@pytest.mark.parametrize("offset", [True, False, 1.5, "10"])
+def test_list_rejects_non_integer_offset(db, offset):
+    user = create_user(db)
+    service = ReminderService(db)
+
+    with pytest.raises(ReminderValidationError):
+        service.list_for_user(user.id, offset=offset)
+
+
+@pytest.mark.parametrize("completed", ["true", 1, 0, None])
+def test_set_completed_rejects_non_boolean_values(db, completed):
+    user = create_user(db)
+    service = ReminderService(db)
+    reminder = service.create(
+        user.id, "Finish assignment", future_time(hours=1)
+    )
+
+    if completed is None:
+        return
+
+    with pytest.raises(ReminderValidationError):
+        service.set_completed(user.id, reminder.id, completed=completed)
+
+
+@pytest.mark.parametrize("completed", ["true", 1, 0])
+def test_list_rejects_non_boolean_completion_filter(db, completed):
+    user = create_user(db)
+    service = ReminderService(db)
+
+    with pytest.raises(ReminderValidationError):
+        service.list_for_user(user.id, completed=completed)
+
+
 def test_update_requires_owner_and_future_time(db):
     owner = create_user(db)
     other_user = create_user(db)
