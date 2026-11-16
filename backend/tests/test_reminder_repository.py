@@ -82,7 +82,9 @@ def test_list_by_user_is_scoped_and_ordered(db):
         repository, user.id, "Earlier", now + timedelta(hours=1)
     )
     create_reminder(
-        repository, other_user.id, "Other user's reminder",
+        repository,
+        other_user.id,
+        "Other user's reminder",
         now + timedelta(minutes=30),
     )
     db.commit()
@@ -93,6 +95,31 @@ def test_list_by_user_is_scoped_and_ordered(db):
         earlier.id, later.id
     ]
     assert all(item.user_id == user.id for item in reminders)
+
+
+def test_list_by_user_uses_id_as_tiebreaker(db):
+    user = create_user(db)
+    repository = ReminderRepository(db)
+    shared_time = datetime.now(timezone.utc) + timedelta(hours=1)
+
+    reminders = [
+        Reminder(
+            id=uuid4(),
+            user_id=user.id,
+            title=f"Reminder {index}",
+            remind_at=shared_time,
+        )
+        for index in range(3)
+    ]
+
+    db.add_all(reminders)
+    db.commit()
+
+    results = repository.list_by_user(user.id)
+
+    assert [item.id for item in results] == sorted(
+        reminder.id for reminder in reminders
+    )
 
 
 def test_list_supports_pagination_and_completion_filter(db):
