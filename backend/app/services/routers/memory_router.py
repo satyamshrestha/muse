@@ -16,15 +16,24 @@ router = APIRouter(prefix="/groups", tags=["memories"])
 
 def _raise_memory_error(error: ValueError) -> None:
     message = str(error)
+    lowered_message = message.lower()
 
-    if "not found" in message.lower():
+    if "not found" in lowered_message:
         code = status.HTTP_404_NOT_FOUND
-    elif "limit must" in message.lower() or "offset cannot" in message.lower():
+    elif (
+        "limit must" in lowered_message
+        or "offset cannot" in lowered_message
+        or "memory title" in lowered_message
+        or "memory date" in lowered_message
+    ):
         code = status.HTTP_422_UNPROCESSABLE_ENTITY
     else:
         code = status.HTTP_403_FORBIDDEN
 
-    raise HTTPException(status_code=code, detail=message) from error
+    raise HTTPException(
+        status_code=code,
+        detail=message,
+    ) from error
 
 
 @router.post(

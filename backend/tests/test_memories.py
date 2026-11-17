@@ -334,3 +334,37 @@ def test_update_memory_rejects_whitespace_only_title(client):
     )
 
     assert result.status_code == 422
+
+
+def test_create_memory_rejects_naive_memory_date(client):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+
+    response = create_memory(
+        client,
+        headers,
+        group["id"],
+        memory_date="2026-07-10T00:00:00",
+    )
+
+    assert response.status_code == 422
+
+
+def test_update_memory_rejects_naive_memory_date(client):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+
+    created = create_memory(client, headers, group["id"])
+    assert created.status_code == 201, created.text
+
+    response = client.put(
+        f"/api/v1/groups/{group['id']}/memories/{created.json()['id']}",
+        headers=headers,
+        json={
+            "title": "Updated memory",
+            "description": None,
+            "memory_date": "2026-07-10T00:00:00",
+        },
+    )
+
+    assert response.status_code == 422
