@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -30,7 +31,11 @@ class MemoryService:
         if not self.membership_repository.is_member(user_id, group_id):
             raise ValueError("User is not a member of this group")
 
-    def _validate_title(self, title: str) -> str:
+    @staticmethod
+    def _validate_title(title: str) -> str:
+        if not isinstance(title, str):
+            raise ValueError("Memory title must be a string")
+
         title = title.strip()
 
         if not title:
@@ -41,27 +46,47 @@ class MemoryService:
 
         return title
 
+    @staticmethod
+    def _validate_memory_date(
+        memory_date: datetime | None,
+    ) -> datetime | None:
+        if memory_date is None:
+            return None
+
+        if not isinstance(memory_date, datetime):
+            raise ValueError("Memory date must be a datetime")
+
+        if memory_date.tzinfo is None or memory_date.utcoffset() is None:
+            raise ValueError("Memory date must include a timezone")
+
+        return memory_date
+
     def create_memory(
         self,
         group_id: UUID,
         user_id: UUID,
         title: str,
         description: str | None = None,
-        memory_date=None,
+        memory_date: datetime | None = None,
     ) -> Memory:
         self._ensure_group_member(group_id, user_id)
         title = self._validate_title(title)
+        memory_date = self._validate_memory_date(memory_date)
 
-        memory = self.memory_repository.create(
-            group_id=group_id,
-            created_by=user_id,
-            title=title,
-            description=description,
-            memory_date=memory_date,
-        )
-        self.db.commit()
-        self.db.refresh(memory)
-        return memory
+        try:
+            memory = self.memory_repository.create(
+                group_id=group_id,
+                created_by=user_id,
+                title=title,
+                description=description,
+                memory_date=memory_date,
+            )
+            self.db.commit()
+            self.db.refresh(memory)
+            return memory
+        except Exception:
+            self.db.rollback()
+            raise
 
     def get_memory(
         self,
@@ -90,8 +115,14 @@ class MemoryService:
     ) -> list[Memory]:
         self._ensure_group_member(group_id, user_id)
 
-        if limit < 1 or limit > 100:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ValueError("Limit must be an integer between 1 and 100")
+
+        if not 1 <= limit <= 100:
             raise ValueError("Limit must be between 1 and 100")
+
+        if isinstance(offset, bool) or not isinstance(offset, int):
+            raise ValueError("Offset must be a non-negative integer")
 
         if offset < 0:
             raise ValueError("Offset cannot be negative")
@@ -110,10 +141,11 @@ class MemoryService:
         *,
         title: str,
         description: str | None,
-        memory_date=None,
+        memory_date: datetime | None = None,
     ) -> Memory:
         self._ensure_group_member(group_id, user_id)
         title = self._validate_title(title)
+        memory_date = self._validate_memory_date(memory_date)
 
         memory = self.memory_repository.get_by_id_for_group(
             memory_id=memory_id,
@@ -126,15 +158,19 @@ class MemoryService:
         if memory.created_by != user_id:
             raise ValueError("Only the memory creator can update it")
 
-        updated_memory = self.memory_repository.update(
-            memory,
-            title=title,
-            description=description,
-            memory_date=memory_date,
-        )
-        self.db.commit()
-        self.db.refresh(updated_memory)
-        return updated_memory
+        try:
+            updated_memory = self.memory_repository.update(
+                memory,
+                title=title,
+                description=description,
+                memory_date=memory_date,
+            )
+            self.db.commit()
+            self.db.refresh(updated_memory)
+            return updated_memory
+        except Exception:
+            self.db.rollback()
+            raise
 
     def delete_memory(
         self,
@@ -155,6 +191,10 @@ class MemoryService:
         if memory.created_by != user_id:
             raise ValueError("Only the memory creator can delete it")
 
-        self.memory_repository.delete(memory)
-        self.db.commit()
-        return True
+        try:
+            self.memory_repository.delete(memory)
+            self.db.commit()
+            return True
+        except Exception:
+            self.db.rollback()
+            raise

@@ -1,4 +1,5 @@
 from uuid import uuid4
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy.orm import Session
@@ -288,3 +289,188 @@ def test_update_memory_rejects_whitespace_only_title(db: Session):
             title="   ",
             description=None,
         )
+
+
+
+@pytest.mark.parametrize("title", [None, 123, [], {}])
+def test_create_memory_rejects_non_string_title(db: Session, title):
+    user = create_user(db)
+    group = create_group(db, user)
+
+    with pytest.raises(ValueError, match="Memory title must be a string"):
+        MemoryService(db).create_memory(group.id, user.id, title)
+
+
+@pytest.mark.parametrize("title", [None, 123, [], {}])
+def test_update_memory_rejects_non_string_title(db: Session, title):
+    user = create_user(db)
+    group = create_group(db, user)
+    service = MemoryService(db)
+    memory = service.create_memory(group.id, user.id, "Original")
+
+    with pytest.raises(ValueError, match="Memory title must be a string"):
+        service.update_memory(
+            group.id,
+            memory.id,
+            user.id,
+            title=title,
+            description=None,
+        )
+
+
+@pytest.mark.parametrize("limit", [True, False, 1.5, "10"])
+def test_list_memories_rejects_non_integer_limit(db: Session, limit):
+    user = create_user(db)
+    group = create_group(db, user)
+
+    with pytest.raises(ValueError, match="Limit must be an integer"):
+        MemoryService(db).list_memories(
+            group.id, user.id, limit=limit
+        )
+
+
+@pytest.mark.parametrize("offset", [True, False, 1.5, "10"])
+def test_list_memories_rejects_non_integer_offset(db: Session, offset):
+    user = create_user(db)
+    group = create_group(db, user)
+
+    with pytest.raises(ValueError, match="Offset must be a non-negative integer"):
+        MemoryService(db).list_memories(
+            group.id, user.id, offset=offset
+        )
+
+
+def test_create_memory_rejects_naive_memory_date(db: Session):
+    user = create_user(db)
+    group = create_group(db, user)
+    naive_date = datetime(2026, 7, 10)
+
+    with pytest.raises(ValueError, match="Memory date must include a timezone"):
+        MemoryService(db).create_memory(
+            group.id,
+            user.id,
+            "Summer trip",
+            memory_date=naive_date,
+        )
+
+
+def test_create_memory_rejects_invalid_memory_date_type(db: Session):
+    user = create_user(db)
+    group = create_group(db, user)
+
+    with pytest.raises(ValueError, match="Memory date must be a datetime"):
+        MemoryService(db).create_memory(
+            group.id,
+            user.id,
+            "Summer trip",
+            memory_date="2026-07-10",
+        )
+
+
+def test_create_memory_accepts_timezone_aware_memory_date(db: Session):
+    user = create_user(db)
+    group = create_group(db, user)
+    memory_date = datetime(2026, 7, 10, tzinfo=timezone.utc)
+
+    memory = MemoryService(db).create_memory(
+        group.id,
+        user.id,
+        "Summer trip",
+        memory_date=memory_date,
+    )
+
+    assert memory.memory_date == memory_date
+
+
+
+def test_create_memory_rolls_back_on_commit_failure(
+    db: Session, monkeypatch
+):
+    user = create_user(db)
+    group = create_group(db, user)
+    service = MemoryService(db)
+
+    original_rollback = db.rollback
+    rollback_calls = []
+
+    def fail_commit():
+        raise RuntimeError("Commit failed")
+
+    def track_rollback():
+        rollback_calls.append(True)
+        original_rollback()
+
+    monkeypatch.setattr(db, "commit", fail_commit)
+    monkeypatch.setattr(db, "rollback", track_rollback)
+
+    with pytest.raises(RuntimeError, match="Commit failed"):
+        service.create_memory(group.id, user.id, "Summer trip")
+
+    assert rollback_calls == [True]
+    assert service.memory_repository.list_by_group(group.id) == []
+
+
+def test_update_memory_rolls_back_on_commit_failure(
+    db: Session, monkeypatch
+):
+    user = create_user(db)
+    group = create_group(db, user)
+    service = MemoryService(db)
+    memory = service.create_memory(group.id, user.id, "Original")
+
+    original_rollback = db.rollback
+    rollback_calls = []
+
+    def fail_commit():
+        raise RuntimeError("Commit failed")
+
+    def track_rollback():
+        rollback_calls.append(True)
+        original_rollback()
+
+    monkeypatch.setattr(db, "commit", fail_commit)
+    monkeypatch.setattr(db, "rollback", track_rollback)
+
+    with pytest.raises(RuntimeError, match="Commit failed"):
+        service.update_memory(
+            group.id,
+            memory.id,
+            user.id,
+            title="Updated",
+            description=None,
+        )
+
+    assert rollback_calls == [True]
+
+    restored = service.get_memory(group.id, memory.id, user.id)
+    assert restored.title == "Original"
+
+
+def test_delete_memory_rolls_back_on_commit_failure(
+    db: Session, monkeypatch
+):
+    user = create_user(db)
+    group = create_group(db, user)
+    service = MemoryService(db)
+    memory = service.create_memory(group.id, user.id, "Original")
+
+    original_rollback = db.rollback
+    rollback_calls = []
+
+    def fail_commit():
+        raise RuntimeError("Commit failed")
+
+    def track_rollback():
+        rollback_calls.append(True)
+        original_rollback()
+
+    monkeypatch.setattr(db, "commit", fail_commit)
+    monkeypatch.setattr(db, "rollback", track_rollback)
+
+    with pytest.raises(RuntimeError, match="Commit failed"):
+        service.delete_memory(group.id, memory.id, user.id)
+
+    assert rollback_calls == [True]
+
+    restored = service.get_memory(group.id, memory.id, user.id)
+    assert restored.title == "Original"
