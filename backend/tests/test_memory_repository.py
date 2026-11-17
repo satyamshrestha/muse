@@ -1,4 +1,5 @@
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -226,3 +227,32 @@ def test_delete_memory(db: Session):
     db.commit()
 
     assert repository.get_by_id_for_group(memory_id, group.id) is None
+
+
+def test_list_by_group_uses_id_as_tiebreaker(db: Session):
+    user = create_user(db)
+    group = create_group(db)
+    repository = MemoryRepository(db)
+
+    shared_time = datetime(2026, 7, 10, tzinfo=timezone.utc)
+
+    memories = [
+        Memory(
+            id=uuid4(),
+            group_id=group.id,
+            created_by=user.id,
+            title=f"Memory {index}",
+            created_at=shared_time,
+        )
+        for index in range(3)
+    ]
+
+    db.add_all(memories)
+    db.commit()
+
+    results = repository.list_by_group(group.id)
+
+    assert [memory.id for memory in results] == sorted(
+        (memory.id for memory in memories),
+        reverse=True,
+    )
