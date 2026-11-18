@@ -343,3 +343,45 @@ def test_concurrent_duplicate_attachment_returns_conflict(
     )
     assert "IntegrityError" not in response.text
     assert lookup_count == 2
+
+
+def test_list_memory_media_rejects_negative_offset(client, db):
+    headers, user = create_authenticated_user(client, db)
+    group = create_group(client, headers)
+    memory = create_memory(client, headers, group["id"])
+
+    result = client.get(
+        f"/api/v1/groups/{group['id']}/memories/{memory['id']}/media"
+        "?offset=-1",
+        headers=headers,
+    )
+
+    assert result.status_code == 422
+
+
+def test_list_memory_media_rejects_limit_above_maximum(client, db):
+    headers, user = create_authenticated_user(client, db)
+    group = create_group(client, headers)
+    memory = create_memory(client, headers, group["id"])
+
+    result = client.get(
+        f"/api/v1/groups/{group['id']}/memories/{memory['id']}/media"
+        "?limit=101",
+        headers=headers,
+    )
+
+    assert result.status_code == 422
+
+
+def test_attach_memory_media_rejects_invalid_media_id(client, db):
+    headers, user = create_authenticated_user(client, db)
+    group = create_group(client, headers)
+    memory = create_memory(client, headers, group["id"])
+
+    result = client.post(
+        f"/api/v1/groups/{group['id']}/memories/{memory['id']}/media",
+        headers=headers,
+        json={"media_id": "not-a-valid-uuid"},
+    )
+
+    assert result.status_code == 422

@@ -22,7 +22,11 @@ def _raise_memory_media_error(error: ValueError) -> None:
         code = status.HTTP_409_CONFLICT
     elif "not found" in lowered:
         code = status.HTTP_404_NOT_FOUND
-    elif "limit must" in lowered or "offset cannot" in lowered:
+    elif (
+        "limit must" in lowered
+        or "offset cannot" in lowered
+        or "offset must" in lowered
+    ):
         code = status.HTTP_422_UNPROCESSABLE_ENTITY
     else:
         code = status.HTTP_403_FORBIDDEN
