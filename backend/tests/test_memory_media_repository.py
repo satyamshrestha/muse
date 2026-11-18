@@ -1,4 +1,7 @@
+import pytest
 from uuid import uuid4
+from datetime import datetime, timezone
+from sqlalchemy.exc import IntegrityError
 
 from app.models.friend_group import FriendGroup
 from app.models.group_membership import GroupMembership
@@ -210,3 +213,43 @@ def test_memory_media_repository_delete(db):
     db.flush()
 
     assert repository.get_by_id(link_id) is None
+
+
+def test_memory_media_repository_list_uses_id_as_tiebreaker(db):
+    user = create_test_user(db)
+    memory = create_test_memory(db, user)
+
+    shared_time = datetime(2026, 7, 10, tzinfo=timezone.utc)
+
+    links = [
+        MemoryMedia(
+            memory_id=memory.id,
+            media_id=create_test_media(db, user).id,
+            created_at=shared_time,
+        )
+        for _ in range(3)
+    ]
+
+    db.add_all(links)
+    db.flush()
+
+    repository = MemoryMediaRepository(db)
+    results = repository.list_by_memory(memory.id)
+
+    assert [link.id for link in results] == sorted(
+        (link.id for link in links),
+        reverse=True,
+    )
+
+
+def test_memory_media_repository_rejects_duplicate_link(db):
+    user = create_test_user(db)
+    memory = create_test_memory(db, user)
+    media = create_test_media(db, user)
+
+    repository = MemoryMediaRepository(db)
+    repository.create(memory.id, media.id)
+    db.flush()
+
+    with pytest.raises(IntegrityError):
+        repository.create(memory.id, media.id)
