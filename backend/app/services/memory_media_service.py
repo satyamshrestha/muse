@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.media import Media
+from app.models.memory import Memory
 from app.models.memory_media import MemoryMedia
 from app.repositories.friend_group_repository import FriendGroupRepository
 from app.repositories.group_membership_repository import (
@@ -38,7 +39,7 @@ class MemoryMediaService:
         self,
         group_id: UUID,
         memory_id: UUID,
-    ):
+    ) -> Memory:
         memory = self.memory_repository.get_by_id_for_group(
             memory_id=memory_id,
             group_id=group_id,
@@ -48,6 +49,23 @@ class MemoryMediaService:
             raise ValueError("Memory not found")
 
         return memory
+
+    @staticmethod
+    def _validate_pagination(
+        limit: int,
+        offset: int,
+    ) -> None:
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise ValueError("Limit must be an integer between 1 and 100")
+
+        if not 1 <= limit <= 100:
+            raise ValueError("Limit must be between 1 and 100")
+
+        if isinstance(offset, bool) or not isinstance(offset, int):
+            raise ValueError("Offset must be a non-negative integer")
+
+        if offset < 0:
+            raise ValueError("Offset cannot be negative")
 
     def attach_media(
         self,
@@ -101,6 +119,10 @@ class MemoryMediaService:
 
             raise
 
+        except Exception:
+            self.db.rollback()
+            raise
+
         self.db.refresh(link)
         return link
 
@@ -114,12 +136,7 @@ class MemoryMediaService:
     ) -> list[MemoryMedia]:
         self._ensure_group_member(group_id, user_id)
         self._get_memory(group_id, memory_id)
-
-        if limit < 1 or limit > 100:
-            raise ValueError("Limit must be between 1 and 100")
-
-        if offset < 0:
-            raise ValueError("Offset cannot be negative")
+        self._validate_pagination(limit, offset)
 
         return self.memory_media_repository.list_by_memory(
             memory_id=memory_id,
@@ -145,6 +162,10 @@ class MemoryMediaService:
         if link is None or link.memory_id != memory_id:
             raise ValueError("Memory media link not found")
 
-        self.memory_media_repository.delete(link)
-        self.db.commit()
-        return True
+        try:
+            self.memory_media_repository.delete(link)
+            self.db.commit()
+            return True
+        except Exception:
+            self.db.rollback()
+            raise

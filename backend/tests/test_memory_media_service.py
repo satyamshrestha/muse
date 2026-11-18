@@ -377,3 +377,65 @@ def test_attach_media_reraises_unrelated_integrity_error(
         )
 
     rollback.assert_called_once()
+
+
+@pytest.mark.parametrize("limit", [True, False, 1.5, "10"])
+def test_list_memory_media_rejects_non_integer_limit(db, limit):
+    user = create_test_user(db)
+    group = create_test_group(db, user)
+    memory = create_test_memory(db, group, user)
+    service = MemoryMediaService(db)
+
+    with pytest.raises(ValueError, match="Limit must be an integer"):
+        service.list_memory_media(
+            group.id, memory.id, user.id, limit=limit
+        )
+
+
+@pytest.mark.parametrize("offset", [True, False, 1.5, "10"])
+def test_list_memory_media_rejects_non_integer_offset(db, offset):
+    user = create_test_user(db)
+    group = create_test_group(db, user)
+    memory = create_test_memory(db, group, user)
+    service = MemoryMediaService(db)
+
+    with pytest.raises(
+        ValueError,
+        match="Offset must be a non-negative integer",
+    ):
+        service.list_memory_media(
+            group.id, memory.id, user.id, offset=offset
+        )
+
+
+def test_detach_media_rolls_back_on_commit_failure(db, monkeypatch):
+    user = create_test_user(db)
+    group = create_test_group(db, user)
+    memory = create_test_memory(db, group, user)
+    media = create_test_media(db, user)
+    service = MemoryMediaService(db)
+
+    link = service.attach_media(
+        group.id, memory.id, media.id, user.id
+    )
+
+    original_rollback = db.rollback
+    rollback_calls = []
+
+    def fail_commit():
+        raise RuntimeError("Commit failed")
+
+    def track_rollback():
+        rollback_calls.append(True)
+        original_rollback()
+
+    monkeypatch.setattr(db, "commit", fail_commit)
+    monkeypatch.setattr(db, "rollback", track_rollback)
+
+    with pytest.raises(RuntimeError, match="Commit failed"):
+        service.detach_media(
+            group.id, memory.id, link.id, user.id
+        )
+
+    assert rollback_calls == [True]
+    assert service.memory_media_repository.get_by_id(link.id) is not None
