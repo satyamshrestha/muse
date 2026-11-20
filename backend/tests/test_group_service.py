@@ -52,6 +52,27 @@ def add_member(db, user_id, group_id) -> None:
     db.commit()
 
 
+def test_create_group_adds_creator_as_member(db):
+    user = create_test_user(db)
+    db.commit()
+
+    service = create_service(db)
+
+    group = service.create_group(
+        user_id=user.id,
+        name="Creator Group",
+    )
+
+    membership = service.membership_repository.get_membership(
+        user_id=user.id,
+        group_id=group.id,
+    )
+
+    assert group.id is not None
+    assert group.name == "Creator Group"
+    assert membership is not None
+
+
 def test_create_group_rolls_back_when_membership_creation_fails(
     db,
     monkeypatch,
@@ -154,6 +175,161 @@ def test_get_group_rejects_unknown_group(db):
 
     with pytest.raises(GroupNotFoundException):
         service.get_group(user.id, uuid4())
+
+
+def test_get_group_members_returns_members_for_member(db):
+    owner = create_test_user(db)
+    second_member = create_test_user(db)
+
+    group = FriendGroup(name="Members Group")
+    db.add(group)
+    db.flush()
+
+    db.add_all(
+        [
+            GroupMembership(user_id=owner.id, group_id=group.id),
+            GroupMembership(
+                user_id=second_member.id,
+                group_id=group.id,
+            ),
+        ]
+    )
+    db.commit()
+
+    service = create_service(db)
+
+    members = service.get_group_members(owner.id, group.id)
+
+    member_ids = {member.id for member in members}
+
+    assert member_ids == {owner.id, second_member.id}
+
+
+def test_get_group_members_rejects_non_member(db):
+    owner = create_test_user(db)
+    outsider = create_test_user(db)
+
+    group = FriendGroup(name="Private Members Group")
+    db.add(group)
+    db.flush()
+
+    add_member(db, owner.id, group.id)
+
+    service = create_service(db)
+
+    with pytest.raises(GroupNotFoundException):
+        service.get_group_members(outsider.id, group.id)
+
+
+def test_get_group_members_rejects_unknown_group(db):
+    user = create_test_user(db)
+    db.commit()
+
+    service = create_service(db)
+
+    with pytest.raises(GroupNotFoundException):
+        service.get_group_members(user.id, uuid4())
+
+
+def test_leave_group_keeps_group_when_other_members_remain(db):
+    first_member = create_test_user(db)
+    second_member = create_test_user(db)
+
+    group = FriendGroup(name="Shared Group")
+    db.add(group)
+    db.flush()
+
+    db.add_all(
+        [
+            GroupMembership(
+                user_id=first_member.id,
+                group_id=group.id,
+            ),
+            GroupMembership(
+                user_id=second_member.id,
+                group_id=group.id,
+            ),
+        ]
+    )
+    db.commit()
+
+    service = create_service(db)
+
+    service.leave_group(first_member.id, group.id)
+
+    assert db.get(FriendGroup, group.id) is not None
+    assert (
+        service.membership_repository.get_membership(
+            first_member.id,
+            group.id,
+        )
+        is None
+    )
+    assert (
+        service.membership_repository.get_membership(
+            second_member.id,
+            group.id,
+        )
+        is not None
+    )
+
+
+def test_leave_group_deletes_group_when_last_member_leaves(db):
+    user = create_test_user(db)
+
+    group = FriendGroup(name="Empty Group")
+    db.add(group)
+    db.flush()
+
+    add_member(db, user.id, group.id)
+
+    service = create_service(db)
+
+    service.leave_group(user.id, group.id)
+
+    assert db.get(FriendGroup, group.id) is None
+    assert (
+        service.membership_repository.get_membership(
+            user.id,
+            group.id,
+        )
+        is None
+    )
+
+
+def test_leave_group_rejects_non_member(db):
+    owner = create_test_user(db)
+    outsider = create_test_user(db)
+
+    group = FriendGroup(name="Protected Group")
+    db.add(group)
+    db.flush()
+
+    add_member(db, owner.id, group.id)
+
+    service = create_service(db)
+
+    with pytest.raises(GroupNotFoundException):
+        service.leave_group(outsider.id, group.id)
+
+    assert db.get(FriendGroup, group.id) is not None
+    assert (
+        service.membership_repository.get_membership(
+            owner.id,
+            group.id,
+        )
+        is not None
+    )
+
+
+def test_leave_group_rejects_unknown_group(db):
+    user = create_test_user(db)
+    db.commit()
+
+    service = create_service(db)
+
+    with pytest.raises(GroupNotFoundException):
+        service.leave_group(user.id, uuid4())
 
 
 def test_join_group_with_invitation_creates_membership(db):
