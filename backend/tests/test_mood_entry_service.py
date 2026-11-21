@@ -50,7 +50,10 @@ def test_create_rejects_unsupported_mood(db, mood):
         service.create(user.id, mood, 3)
 
 
-@pytest.mark.parametrize("intensity", [0, 6, -1, True, 2.5])
+@pytest.mark.parametrize(
+    "intensity",
+    [0, 6, -1, True, 2.5],
+)
 def test_create_rejects_invalid_intensity(db, intensity):
     user = create_user(db)
     service = MoodEntryService(db)
@@ -102,6 +105,54 @@ def test_entries_are_private_to_their_owner(db):
 
     with pytest.raises(MoodEntryNotFoundError):
         service.delete(other_user.id, entry.id)
+
+
+def test_get_for_user_rejects_missing_entry(db):
+    user = create_user(db)
+    service = MoodEntryService(db)
+
+    with pytest.raises(MoodEntryNotFoundError):
+        service.get_for_user(user.id, uuid4())
+
+
+def test_delete_rejects_missing_entry(db):
+    user = create_user(db)
+    service = MoodEntryService(db)
+
+    with pytest.raises(MoodEntryNotFoundError):
+        service.delete(user.id, uuid4())
+
+
+def test_create_rolls_back_when_commit_fails(db, monkeypatch):
+    user = create_user(db)
+    service = MoodEntryService(db)
+
+    def fail_commit():
+        raise RuntimeError("Simulated commit failure")
+
+    monkeypatch.setattr(db, "commit", fail_commit)
+
+    with pytest.raises(RuntimeError, match="Simulated commit failure"):
+        service.create(user.id, "happy", 4)
+
+    assert service.repository.list_by_user(user.id) == []
+
+
+def test_delete_rolls_back_when_commit_fails(db, monkeypatch):
+    user = create_user(db)
+    service = MoodEntryService(db)
+
+    entry = service.create(user.id, "calm", 3)
+
+    def fail_commit():
+        raise RuntimeError("Simulated commit failure")
+
+    monkeypatch.setattr(db, "commit", fail_commit)
+
+    with pytest.raises(RuntimeError, match="Simulated commit failure"):
+        service.delete(user.id, entry.id)
+
+    assert service.get_for_user(user.id, entry.id) is not None
 
 
 def test_delete_mood_entry(db):
