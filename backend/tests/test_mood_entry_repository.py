@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.models.mood_entry import MoodEntry
@@ -43,9 +44,7 @@ def test_get_by_id_requires_matching_owner(db):
     other_user = create_user(db)
     repository = MoodEntryRepository(db)
 
-    entry = repository.create(
-        owner.id, "calm", 3
-    )
+    entry = repository.create(owner.id, "calm", 3)
     db.commit()
 
     assert repository.get_by_id_for_user(
@@ -55,6 +54,17 @@ def test_get_by_id_requires_matching_owner(db):
     assert repository.get_by_id_for_user(
         entry.id, other_user.id
     ) is None
+
+
+def test_get_by_id_returns_none_for_missing_entry(db):
+    user = create_user(db)
+    repository = MoodEntryRepository(db)
+
+    result = repository.get_by_id_for_user(
+        uuid4(), user.id
+    )
+
+    assert result is None
 
 
 def test_list_by_user_is_scoped_and_paginated(db):
@@ -87,6 +97,28 @@ def test_list_by_user_is_scoped_and_paginated(db):
     )
     assert len(page) == 1
     assert page[0].id == first.id
+
+
+def test_list_by_user_uses_id_as_tie_breaker(db):
+    user = create_user(db)
+    repository = MoodEntryRepository(db)
+
+    first = repository.create(user.id, "happy", 4)
+    second = repository.create(user.id, "calm", 3)
+
+    shared_timestamp = datetime(
+        2026, 1, 1, tzinfo=timezone.utc
+    )
+    first.created_at = shared_timestamp
+    second.created_at = shared_timestamp
+    db.commit()
+
+    entries = repository.list_by_user(user.id)
+
+    assert len(entries) == 2
+    assert entries[0].created_at == entries[1].created_at
+    assert entries[0].id == max(first.id, second.id)
+    assert entries[1].id == min(first.id, second.id)
 
 
 def test_delete_mood_entry(db):
