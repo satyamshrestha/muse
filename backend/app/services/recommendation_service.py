@@ -33,15 +33,20 @@ class RecommendationService:
         if description is not None and not description.strip():
             raise ValueError("Description cannot be empty")
 
-        recommendation = self.repository.create(
-            user_id=user_id,
-            recommendation_type=recommendation_type,
-            title=title,
-            description=description,
-            source=source,
-        )
+        try:
+            recommendation = self.repository.create(
+                user_id=user_id,
+                recommendation_type=recommendation_type,
+                title=title,
+                description=description,
+                source=source,
+            )
 
-        self.db.commit()
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
         self.db.refresh(recommendation)
 
         return recommendation
@@ -101,9 +106,13 @@ class RecommendationService:
         if recommendation is None:
             raise ValueError("Recommendation not found")
 
-        deleted = self.repository.delete(recommendation_id)
+        try:
+            deleted = self.repository.delete(recommendation_id)
 
-        if deleted:
-            self.db.commit()
+            if deleted:
+                self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
 
         return deleted

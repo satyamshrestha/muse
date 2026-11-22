@@ -255,3 +255,79 @@ def test_delete_unknown_recommendation(db):
 
     with pytest.raises(ValueError, match="Recommendation not found"):
         service.delete_recommendation(uuid4(), user.id)
+
+
+def test_create_recommendation_rolls_back_when_commit_fails(
+    db,
+    monkeypatch,
+):
+    user = create_user(db)
+    service = RecommendationService(db)
+
+    original_rollback = db.rollback
+    rollback_called = False
+
+    def failing_commit():
+        raise RuntimeError("Database commit failed")
+
+    def tracked_rollback():
+        nonlocal rollback_called
+        rollback_called = True
+        original_rollback()
+
+    monkeypatch.setattr(db, "commit", failing_commit)
+    monkeypatch.setattr(db, "rollback", tracked_rollback)
+
+    with pytest.raises(RuntimeError, match="Database commit failed"):
+        create_recommendation(
+            service,
+            user.id,
+            title="Commit failure recommendation",
+        )
+
+    assert rollback_called
+
+    result = (
+        db.query(Recommendation)
+        .filter(
+            Recommendation.user_id == user.id,
+            Recommendation.title == "Commit failure recommendation",
+        )
+        .first()
+    )
+    assert result is None
+
+
+def test_delete_recommendation_rolls_back_when_commit_fails(
+    db,
+    monkeypatch,
+):
+    user = create_user(db)
+    service = RecommendationService(db)
+
+    created = create_recommendation(service, user.id)
+    recommendation_id = created.id
+
+    original_rollback = db.rollback
+    rollback_called = False
+
+    def failing_commit():
+        raise RuntimeError("Database commit failed")
+
+    def tracked_rollback():
+        nonlocal rollback_called
+        rollback_called = True
+        original_rollback()
+
+    monkeypatch.setattr(db, "commit", failing_commit)
+    monkeypatch.setattr(db, "rollback", tracked_rollback)
+
+    with pytest.raises(RuntimeError, match="Database commit failed"):
+        service.delete_recommendation(recommendation_id, user.id)
+
+    assert rollback_called
+
+    # The rollback should restore the recommendation that was deleted
+    # inside the failed transaction.
+    result = db.get(Recommendation, recommendation_id)
+    assert result is not None
