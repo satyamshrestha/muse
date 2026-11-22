@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+import pytest
+
 from app.models.user import User
 
 
@@ -88,16 +90,82 @@ def test_create_recommendation_requires_authentication(client):
     assert response.status_code == 401
 
 
-def test_create_recommendation_rejects_missing_title(client, db):
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "recommendation_type": "activity",
+            "source": "ai",
+        },
+        {
+            "title": "Try photography",
+            "source": "ai",
+        },
+        {
+            "recommendation_type": "activity",
+            "title": "Try photography",
+        },
+    ],
+)
+def test_create_recommendation_rejects_missing_required_fields(
+    client,
+    db,
+    payload,
+):
     headers, _ = create_authenticated_user(client, db)
 
     response = client.post(
         "/api/v1/recommendations",
-        json={
-            "recommendation_type": "activity",
-            "source": "ai",
-        },
+        json=payload,
         headers=headers,
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "recommendation_type",
+        "title",
+        "source",
+    ],
+)
+def test_create_recommendation_rejects_empty_required_string(
+    client,
+    db,
+    field,
+):
+    headers, _ = create_authenticated_user(client, db)
+
+    response = create_recommendation(
+        client,
+        headers,
+        **{field: ""},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "recommendation_type",
+        "title",
+        "source",
+    ],
+)
+def test_create_recommendation_rejects_whitespace_required_string(
+    client,
+    db,
+    field,
+):
+    headers, _ = create_authenticated_user(client, db)
+
+    response = create_recommendation(
+        client,
+        headers,
+        **{field: "   "},
     )
 
     assert response.status_code == 422
@@ -110,6 +178,57 @@ def test_create_recommendation_rejects_empty_description(client, db):
         client,
         headers,
         description="   ",
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("field", "maximum"),
+    [
+        ("recommendation_type", 100),
+        ("title", 255),
+        ("source", 100),
+    ],
+)
+def test_create_recommendation_accepts_maximum_field_length(
+    client,
+    db,
+    field,
+    maximum,
+):
+    headers, _ = create_authenticated_user(client, db)
+
+    response = create_recommendation(
+        client,
+        headers,
+        **{field: "a" * maximum},
+    )
+
+    assert response.status_code == 201
+    assert response.json()[field] == "a" * maximum
+
+
+@pytest.mark.parametrize(
+    ("field", "maximum"),
+    [
+        ("recommendation_type", 100),
+        ("title", 255),
+        ("source", 100),
+    ],
+)
+def test_create_recommendation_rejects_excessive_field_length(
+    client,
+    db,
+    field,
+    maximum,
+):
+    headers, _ = create_authenticated_user(client, db)
+
+    response = create_recommendation(
+        client,
+        headers,
+        **{field: "a" * (maximum + 1)},
     )
 
     assert response.status_code == 422
@@ -133,6 +252,12 @@ def test_list_recommendations(client, db):
 
     assert response.status_code == 200
     assert len(response.json()) == 2
+
+
+def test_list_recommendations_requires_authentication(client):
+    response = client.get("/api/v1/recommendations")
+
+    assert response.status_code == 401
 
 
 def test_list_recommendations_only_returns_current_users_data(client, db):
@@ -193,6 +318,22 @@ def test_get_recommendation_rejects_another_users_record(client, db):
     assert response.status_code == 404
 
 
+@pytest.mark.parametrize("method", ["get", "delete"])
+def test_recommendation_id_endpoints_reject_malformed_uuid(
+    client,
+    db,
+    method,
+):
+    headers, _ = create_authenticated_user(client, db)
+
+    response = getattr(client, method)(
+        "/api/v1/recommendations/not-a-uuid",
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+
+
 def test_filter_recommendations_by_type(client, db):
     headers, _ = create_authenticated_user(client, db)
 
@@ -226,6 +367,58 @@ def test_filter_recommendations_by_type(client, db):
     )
 
 
+def test_filter_recommendations_by_type_requires_authentication(client):
+    response = client.get(
+        "/api/v1/recommendations/type/activity",
+    )
+
+    assert response.status_code == 401
+
+
+def test_filter_recommendations_by_type_only_returns_current_users_data(
+    client,
+    db,
+):
+    headers_one, _ = create_authenticated_user(client, db)
+    headers_two, _ = create_authenticated_user(client, db)
+
+    create_recommendation(
+        client,
+        headers_one,
+        recommendation_type="activity",
+        title="User One activity",
+    )
+    create_recommendation(
+        client,
+        headers_two,
+        recommendation_type="activity",
+        title="User Two activity",
+    )
+
+    response = client.get(
+        "/api/v1/recommendations/type/activity",
+        headers=headers_one,
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["title"] == "User One activity"
+
+
+def test_filter_recommendations_by_type_rejects_empty_value(
+    client,
+    db,
+):
+    headers, _ = create_authenticated_user(client, db)
+
+    response = client.get(
+        "/api/v1/recommendations/type/%20%20%20",
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+
+
 def test_filter_recommendations_by_source(client, db):
     headers, _ = create_authenticated_user(client, db)
 
@@ -251,6 +444,58 @@ def test_filter_recommendations_by_source(client, db):
     )
 
 
+def test_filter_recommendations_by_source_requires_authentication(client):
+    response = client.get(
+        "/api/v1/recommendations/source/ai",
+    )
+
+    assert response.status_code == 401
+
+
+def test_filter_recommendations_by_source_only_returns_current_users_data(
+    client,
+    db,
+):
+    headers_one, _ = create_authenticated_user(client, db)
+    headers_two, _ = create_authenticated_user(client, db)
+
+    create_recommendation(
+        client,
+        headers_one,
+        source="ai",
+        title="User One recommendation",
+    )
+    create_recommendation(
+        client,
+        headers_two,
+        source="ai",
+        title="User Two recommendation",
+    )
+
+    response = client.get(
+        "/api/v1/recommendations/source/ai",
+        headers=headers_one,
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["title"] == "User One recommendation"
+
+
+def test_filter_recommendations_by_source_rejects_empty_value(
+    client,
+    db,
+):
+    headers, _ = create_authenticated_user(client, db)
+
+    response = client.get(
+        "/api/v1/recommendations/source/%20%20%20",
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+
+
 def test_delete_recommendation(client, db):
     headers, _ = create_authenticated_user(client, db)
 
@@ -270,6 +515,25 @@ def test_delete_recommendation(client, db):
     )
 
     assert get_response.status_code == 404
+
+
+def test_delete_recommendation_not_found(client, db):
+    headers, _ = create_authenticated_user(client, db)
+
+    response = client.delete(
+        f"/api/v1/recommendations/{uuid4()}",
+        headers=headers,
+    )
+
+    assert response.status_code == 404
+
+
+def test_delete_recommendation_requires_authentication(client):
+    response = client.delete(
+        f"/api/v1/recommendations/{uuid4()}",
+    )
+
+    assert response.status_code == 401
 
 
 def test_delete_recommendation_rejects_another_users_record(client, db):
