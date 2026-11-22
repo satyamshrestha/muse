@@ -1,4 +1,5 @@
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from app.models.recommendation import Recommendation
 from app.models.user import User
@@ -268,3 +269,93 @@ def test_delete_returns_false_for_unknown_id(db):
     result = repository.delete(uuid4())
 
     assert result is False
+
+
+def test_get_recommendations_by_type_does_not_include_another_users_records(
+    db,
+):
+    first_user = create_user(db)
+    second_user = create_user(db)
+    repository = RecommendationRepository(db)
+
+    repository.create(
+        user_id=first_user.id,
+        recommendation_type="activity",
+        title="First user's activity",
+        source="system",
+    )
+    repository.create(
+        user_id=second_user.id,
+        recommendation_type="activity",
+        title="Second user's activity",
+        source="system",
+    )
+
+    results = repository.get_by_type_for_user(
+        first_user.id,
+        "activity",
+    )
+
+    assert len(results) == 1
+    assert results[0].user_id == first_user.id
+    assert results[0].title == "First user's activity"
+
+
+def test_get_recommendations_by_source_does_not_include_another_users_records(
+    db,
+):
+    first_user = create_user(db)
+    second_user = create_user(db)
+    repository = RecommendationRepository(db)
+
+    repository.create(
+        user_id=first_user.id,
+        recommendation_type="activity",
+        title="First user's recommendation",
+        source="ai",
+    )
+    repository.create(
+        user_id=second_user.id,
+        recommendation_type="activity",
+        title="Second user's recommendation",
+        source="ai",
+    )
+
+    results = repository.get_by_source_for_user(
+        first_user.id,
+        "ai",
+    )
+
+    assert len(results) == 1
+    assert results[0].user_id == first_user.id
+    assert results[0].title == "First user's recommendation"
+
+
+def test_get_recommendations_orders_equal_timestamps_by_id_desc(db):
+    user = create_user(db)
+    repository = RecommendationRepository(db)
+
+    first = repository.create(
+        user_id=user.id,
+        recommendation_type="activity",
+        title="First recommendation",
+        source="system",
+    )
+    second = repository.create(
+        user_id=user.id,
+        recommendation_type="activity",
+        title="Second recommendation",
+        source="system",
+    )
+
+    same_timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    first.created_at = same_timestamp
+    second.created_at = same_timestamp
+    db.flush()
+
+    results = repository.get_for_user(user.id)
+
+    assert [item.id for item in results] == sorted(
+        [first.id, second.id],
+        reverse=True,
+    )
