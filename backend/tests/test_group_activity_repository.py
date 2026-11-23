@@ -1,4 +1,5 @@
-from uuid import uuid4
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
 
 from app.models.friend_group import FriendGroup
 from app.models.group_activity import GroupActivity
@@ -134,6 +135,66 @@ def test_get_for_group_returns_empty_list_when_no_activities(db):
     repository = GroupActivityRepository(db)
 
     assert repository.get_for_group(group.id) == []
+
+
+def test_get_for_group_orders_by_created_at_then_id_desc(db):
+    user = create_test_user(db)
+    group = create_test_group(db)
+
+    timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    older = GroupActivity(
+        id=UUID(int=1),
+        group_id=group.id,
+        created_by=user.id,
+        activity_type="poll",
+        title="Older activity",
+        created_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+    )
+    same_time_lower_id = GroupActivity(
+        id=UUID(int=2),
+        group_id=group.id,
+        created_by=user.id,
+        activity_type="poll",
+        title="Lower ID",
+        created_at=timestamp,
+    )
+    same_time_higher_id = GroupActivity(
+        id=UUID(int=3),
+        group_id=group.id,
+        created_by=user.id,
+        activity_type="poll",
+        title="Higher ID",
+        created_at=timestamp,
+    )
+    newest = GroupActivity(
+        id=UUID(int=4),
+        group_id=group.id,
+        created_by=user.id,
+        activity_type="poll",
+        title="Newest activity",
+        created_at=datetime(2027, 1, 1, tzinfo=timezone.utc),
+    )
+
+    db.add_all(
+        [
+            older,
+            same_time_lower_id,
+            same_time_higher_id,
+            newest,
+        ]
+    )
+    db.commit()
+
+    repository = GroupActivityRepository(db)
+    results = repository.get_for_group(group.id)
+
+    assert [activity.id for activity in results] == [
+        newest.id,
+        same_time_higher_id.id,
+        same_time_lower_id.id,
+        older.id,
+    ]
 
 
 def test_delete_removes_activity(db):

@@ -46,7 +46,10 @@ class GroupActivityRepository:
         statement = (
             select(GroupActivity)
             .where(GroupActivity.group_id == group_id)
-            .order_by(GroupActivity.created_at.desc())
+            .order_by(
+                GroupActivity.created_at.desc(),
+                GroupActivity.id.desc(),
+            )
         )
         return list(self.db.scalars(statement))
 
