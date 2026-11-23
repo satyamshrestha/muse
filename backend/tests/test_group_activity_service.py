@@ -49,7 +49,9 @@ def test_create_activity_for_group_member(db):
     assert activity.id is not None
     assert activity.group_id == group.id
     assert activity.created_by == user.id
+    assert activity.activity_type == "poll"
     assert activity.title == "Weekend plans"
+    assert activity.description == "Choose an activity"
 
 
 def test_create_activity_rejects_missing_group(db):
@@ -119,6 +121,16 @@ def test_get_activity_rejects_non_member(db):
         service.get_activity(activity.id, outsider.id)
 
 
+def test_get_activity_rejects_missing_activity(db):
+    user = create_test_user(db)
+    service = GroupActivityService(db)
+
+    with pytest.raises(
+        ValueError, match="Group activity not found"
+    ):
+        service.get_activity(uuid4(), user.id)
+
+
 def test_get_group_activities_returns_activities(db):
     user = create_test_user(db)
     group = create_test_group(db)
@@ -134,7 +146,10 @@ def test_get_group_activities_returns_activities(db):
 
     activities = service.get_group_activities(group.id, user.id)
 
-    assert {item.id for item in activities} == {first.id, second.id}
+    assert {item.id for item in activities} == {
+        first.id,
+        second.id,
+    }
 
 
 def test_get_group_activities_rejects_non_member(db):
@@ -146,6 +161,14 @@ def test_get_group_activities_rejects_non_member(db):
         ValueError, match="not a member of this group"
     ):
         service.get_group_activities(group.id, user.id)
+
+
+def test_get_group_activities_rejects_missing_group(db):
+    user = create_test_user(db)
+    service = GroupActivityService(db)
+
+    with pytest.raises(ValueError, match="Group not found"):
+        service.get_group_activities(uuid4(), user.id)
 
 
 def test_delete_activity_by_creator(db):
@@ -180,9 +203,11 @@ def test_delete_activity_rejects_non_creator(db):
         service.delete_activity(activity.id, other_user.id)
 
 
-def test_get_activity_rejects_missing_activity(db):
+def test_delete_activity_rejects_missing_activity(db):
     user = create_test_user(db)
     service = GroupActivityService(db)
 
-    with pytest.raises(ValueError, match="Group activity not found"):
-        service.get_activity(uuid4(), user.id)
+    with pytest.raises(
+        ValueError, match="Group activity not found"
+    ):
+        service.delete_activity(uuid4(), user.id)
