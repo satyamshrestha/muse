@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+import pytest
+
 
 def create_authenticated_user(client):
     email = f"{uuid4()}@example.com"
@@ -145,6 +147,40 @@ def test_create_activity_rejects_non_member(client):
     assert response.status_code == 403
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"activity_type": "", "title": "Valid title"},
+        {"activity_type": "poll", "title": ""},
+        {"activity_type": "a" * 101, "title": "Valid title"},
+        {"activity_type": "poll", "title": "a" * 256},
+    ],
+)
+def test_create_activity_rejects_invalid_field_lengths(
+    client, payload
+):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+
+    response = client.post(
+        f"/api/v1/groups/{group['id']}/activities",
+        headers=headers,
+        json=payload,
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_activity_rejects_missing_group(client):
+    headers = create_authenticated_user(client)
+
+    response = create_activity(
+        client, headers, uuid4()
+    )
+
+    assert response.status_code == 404
+
+
 def test_list_activities_denies_non_member(client):
     owner_headers = create_authenticated_user(client)
     outsider_headers = create_authenticated_user(client)
@@ -156,6 +192,17 @@ def test_list_activities_denies_non_member(client):
     )
 
     assert response.status_code == 403
+
+
+def test_list_activities_rejects_missing_group(client):
+    headers = create_authenticated_user(client)
+
+    response = client.get(
+        f"/api/v1/groups/{uuid4()}/activities",
+        headers=headers,
+    )
+
+    assert response.status_code == 404
 
 
 def test_get_activity_rejects_unknown_activity(client):
@@ -256,8 +303,37 @@ def test_delete_activity_rejects_wrong_group_id(client):
     assert response.status_code == 404
 
 
+def test_delete_activity_rejects_unknown_activity(client):
+    headers = create_authenticated_user(client)
+    group = create_group(client, headers)
+
+    response = client.delete(
+        f"/api/v1/groups/{group['id']}/activities/{uuid4()}",
+        headers=headers,
+    )
+
+    assert response.status_code == 404
+
+
 def test_list_activities_requires_authentication(client):
     response = client.get(
         f"/api/v1/groups/{uuid4()}/activities"
     )
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "/api/v1/groups/not-a-uuid/activities",
+        "/api/v1/groups/not-a-uuid/activities/not-a-uuid",
+    ],
+)
+def test_group_activity_endpoint_rejects_invalid_uuid(
+    client, endpoint
+):
+    headers = create_authenticated_user(client)
+
+    response = client.get(endpoint, headers=headers)
+
+    assert response.status_code == 422
