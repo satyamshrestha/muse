@@ -11,6 +11,7 @@ from app.models.invitation_code import InvitationCode
 from app.repositories.invitation_code_repository import (
     InvitationCodeRepository,
 )
+from app.services import invitation_code_service
 from app.services.invitation_code_service import InvitationCodeService
 
 
@@ -92,7 +93,43 @@ def test_claim_expired_invitation(db):
         service.claim("EXPIRED123")
 
 
-def test_claim_rejects_code_claimed_after_initial_validation(db, monkeypatch):
+def test_claim_rejects_invitation_expiring_at_current_time(
+    db,
+    monkeypatch,
+):
+    fixed_now = datetime(2026, 11, 25, 12, 0, 0, tzinfo=timezone.utc)
+
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            if tz is None:
+                return fixed_now.replace(tzinfo=None)
+
+            return fixed_now.astimezone(tz)
+
+    create_invitation(
+        db,
+        code="BOUNDARY123",
+        expires_at=fixed_now,
+    )
+
+    repository = InvitationCodeRepository(db)
+    service = InvitationCodeService(repository)
+
+    monkeypatch.setattr(
+        invitation_code_service,
+        "datetime",
+        FixedDateTime,
+    )
+
+    with pytest.raises(InvitationCodeExpiredException):
+        service.claim("BOUNDARY123")
+
+
+def test_claim_rejects_code_claimed_after_initial_validation(
+    db,
+    monkeypatch,
+):
     create_invitation(
         db,
         code="RACE123",
