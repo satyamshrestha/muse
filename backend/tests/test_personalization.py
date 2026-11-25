@@ -482,3 +482,12 @@ def test_update_personalization_rejects_invalid_quiet_hours(client):
     )
 
     assert response.status_code == 422
+
+
+def test_claim_invitation_requires_authentication(client):
+    response = client.post(
+        "/api/v1/auth/claim-invitation",
+        params={"code": "UNAUTHENTICATED123"},
+    )
+
+    assert response.status_code == 401
