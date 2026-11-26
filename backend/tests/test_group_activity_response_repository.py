@@ -1,4 +1,5 @@
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from app.models.friend_group import FriendGroup
 from app.models.group_activity import GroupActivity
@@ -185,3 +186,28 @@ def test_delete_missing_response_returns_false(db):
     repository = GroupActivityResponseRepository(db)
 
     assert repository.delete(uuid4()) is False
+
+
+def test_get_for_activity_orders_responses_newest_first(db):
+    user = create_test_user(db)
+    activity = create_test_activity(db, user)
+    repository = GroupActivityResponseRepository(db)
+
+    older = repository.create(
+        activity_id=activity.id,
+        user_id=user.id,
+        response="Movie night",
+    )
+    newer = repository.create(
+        activity_id=activity.id,
+        user_id=user.id,
+        response="Bowling",
+    )
+
+    older.created_at = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    newer.created_at = datetime(2025, 1, 2, tzinfo=timezone.utc)
+    db.flush()
+
+    results = repository.get_for_activity(activity.id)
+
+    assert [item.id for item in results] == [newer.id, older.id]
