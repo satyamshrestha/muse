@@ -237,3 +237,32 @@ def test_delete_response_rejects_missing_response(db):
         ValueError, match="Group activity response not found"
     ):
         service.delete_response(uuid4(), user.id)
+
+
+
+def test_get_response_allows_another_group_member(db):
+    creator = create_test_user(db)
+    group, activity = create_test_activity(db, creator)
+    member = create_test_user(db)
+
+    db.add(
+        GroupMembership(
+            user_id=member.id,
+            group_id=group.id,
+        )
+    )
+    db.flush()
+
+    service = GroupActivityResponseService(db)
+
+    created = service.create_response(
+        activity_id=activity.id,
+        user_id=creator.id,
+        response="Movie night",
+    )
+
+    result = service.get_response(created.id, member.id)
+
+    assert result.id == created.id
+    assert result.user_id == creator.id
+    assert result.response == "Movie night"
