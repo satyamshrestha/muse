@@ -237,3 +237,38 @@ def test_wrong_group_id_returns_not_found(client):
     )
 
     assert result.status_code == 404
+
+
+
+def test_group_member_can_get_another_members_response(client):
+    owner_headers = create_authenticated_user(client)
+    member_headers = create_authenticated_user(client)
+    group = create_group(client, owner_headers)
+    activity = create_activity(client, owner_headers, group["id"])
+
+    add_group_member(
+        client,
+        owner_headers,
+        member_headers,
+        group["id"],
+    )
+
+    created = create_response(
+        client,
+        owner_headers,
+        group["id"],
+        activity["id"],
+    )
+    assert created.status_code == 201
+
+    response_id = created.json()["id"]
+    result = client.get(
+        f"/api/v1/groups/{group['id']}/activities/{activity['id']}"
+        f"/responses/{response_id}",
+        headers=member_headers,
+    )
+
+    assert result.status_code == 200
+    assert result.json()["id"] == response_id
+    assert result.json()["user_id"] == created.json()["user_id"]
+    assert result.json()["response"] == "Movie night"
