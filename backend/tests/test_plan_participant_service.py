@@ -346,3 +346,26 @@ def test_participant_cannot_respond_after_leaving_group(db):
             invitee.id,
             "accepted",
         )
+
+
+def test_creator_cannot_invite_after_leaving_group(db):
+    creator, group, plan, service = create_plan_context(db)
+    invitee = create_test_user(db)
+    add_member(db, invitee, group)
+    db.commit()
+
+    GroupMembershipRepository(db).delete_membership(
+        user_id=creator.id,
+        group_id=group.id,
+    )
+    db.commit()
+
+    with pytest.raises(
+        ValueError,
+        match="User is not a member of this group",
+    ):
+        service.invite_participant(
+            plan.id,
+            creator.id,
+            invitee.id,
+        )
