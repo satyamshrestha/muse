@@ -199,3 +199,32 @@ def test_delete_participant(db):
 
     assert deleted is True
     assert repository.get_by_id(participant.id) is None
+
+
+def test_update_status_persists_after_reload(db):
+    creator = create_test_user(db)
+    participant_user = create_test_user(db)
+    group = create_test_group(db)
+    plan = create_test_plan(db, creator, group)
+
+    repository = PlanParticipantRepository(db)
+    participant = repository.create(
+        plan_id=plan.id,
+        user_id=participant_user.id,
+    )
+    db.commit()
+
+    participant_id = participant.id
+
+    repository.update_status(
+        participant,
+        status="accepted",
+    )
+    db.commit()
+
+    db.expire_all()
+
+    reloaded = repository.get_by_id(participant_id)
+
+    assert reloaded is not None
+    assert reloaded.status == "accepted"
