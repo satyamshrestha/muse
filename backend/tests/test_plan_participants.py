@@ -186,3 +186,33 @@ def test_invalid_participant_status_returns_validation_error(client, db):
     )
 
     assert result.status_code == 422
+
+
+def test_non_creator_cannot_invite_participant(client, db):
+    owner_headers, _ = create_authenticated_user(client, db)
+    member_headers, member = create_authenticated_user(client, db)
+    invitee_headers, invitee = create_authenticated_user(client, db)
+
+    group = create_group(client, owner_headers)
+    add_group_member(
+        client,
+        group["id"],
+        owner_headers,
+        member_headers,
+    )
+    add_group_member(
+        client,
+        group["id"],
+        owner_headers,
+        invitee_headers,
+    )
+    plan = create_plan(client, owner_headers, group["id"])
+
+    result = client.post(
+        f"/api/v1/groups/{group['id']}/plans/"
+        f"{plan['id']}/participants",
+        headers=member_headers,
+        json={"user_id": str(invitee.id)},
+    )
+
+    assert result.status_code == 403
