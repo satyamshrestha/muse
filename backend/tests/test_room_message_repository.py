@@ -116,3 +116,40 @@ def test_delete_returns_false_when_message_missing(db):
     repository = RoomMessageRepository(db)
 
     assert repository.delete(uuid4()) is False
+
+
+def test_get_for_group_returns_messages_in_created_order(db):
+    user = create_test_user(db)
+    group = create_test_group(db)
+
+    older_message = create_test_message(
+        db,
+        user.id,
+        group.id,
+        content="Older message",
+    )
+    newer_message = create_test_message(
+        db,
+        user.id,
+        group.id,
+        content="Newer message",
+    )
+
+    repository = RoomMessageRepository(db)
+
+    # Explicitly control timestamps rather than relying on insertion timing.
+    from datetime import datetime, timedelta, timezone
+
+    older_message.created_at = datetime.now(timezone.utc) - timedelta(
+        minutes=1
+    )
+    newer_message.created_at = datetime.now(timezone.utc)
+
+    db.flush()
+
+    results = repository.get_for_group(group.id)
+
+    assert [item.id for item in results] == [
+        older_message.id,
+        newer_message.id,
+    ]
