@@ -148,3 +148,29 @@ def test_delete_message_rejects_missing_message(db):
 
     with pytest.raises(ValueError, match="Room message not found"):
         service.delete_message(uuid4(), user.id)
+
+
+def test_delete_message_does_not_commit_when_repository_delete_fails(db, monkeypatch):
+    user = create_test_user(db)
+    group = create_test_group(db)
+    add_group_member(db, user.id, group.id)
+    message = create_test_message(db, user.id, group.id)
+    service = RoomMessageService(db)
+
+    commit_called = False
+
+    def fake_commit():
+        nonlocal commit_called
+        commit_called = True
+
+    monkeypatch.setattr(service.db, "commit", fake_commit)
+    monkeypatch.setattr(
+        service.message_repository,
+        "delete",
+        lambda message_id: False,
+    )
+
+    result = service.delete_message(message.id, user.id)
+
+    assert result is False
+    assert commit_called is False
