@@ -207,3 +207,18 @@ def test_wrong_group_message_path_returns_not_found(client, db):
     )
 
     assert response.status_code == 404
+
+
+def test_delete_missing_message_returns_not_found(client, db):
+    headers, _ = create_authenticated_user(client, db)
+    group = create_group(client, headers)
+
+    missing_message_id = str(uuid4())
+
+    response = client.delete(
+        f"/api/v1/groups/{group['id']}/messages/{missing_message_id}",
+        headers=headers,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Message not found"
